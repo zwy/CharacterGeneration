@@ -322,6 +322,7 @@ def get_major_character_names_from_txt_hanlp(
             f"候选列表：{candidate_str}"
         )
 
+        print(f"[HanLP Strategy] Prompt:\n{prompt}\n", flush=True)
         client = get_llm_client()
         print(f"[HanLP Strategy] Calling LLM ({LLM_MODEL}) for name refinement, please wait...", flush=True)
         import time as _time
