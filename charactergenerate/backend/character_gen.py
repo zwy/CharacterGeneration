@@ -19,6 +19,9 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
+# Load .env file BEFORE reading any environment variables
+load_dotenv()
+
 OLLAMA_MODEL = "Gemma4E4B"
 OLLAMA_HOST = "http://localhost:11434"
 
