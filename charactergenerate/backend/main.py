@@ -210,7 +210,7 @@ async def load_book(req: LoadBookRequest):
             req.book_path = alt_path
         else:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Book file not found. Checked: {req.book_path} and {alt_path}"
             )
 
@@ -319,7 +319,6 @@ async def character_details(req: CharacterDetailsRequest):
         )
 
     try:
-        # Retrieve a top scene for baseline description
         situations = get_character_situations(
             vectorstore=state["vectorstore"],
             character_name=req.character_name,
@@ -354,14 +353,16 @@ async def cast_actor(req: CastActorRequest):
         )
 
     try:
-        result = cast_character_with_actor(
+        # FIX: character_gen.py uses `character_description`, not `description`
+        actor_name = cast_character_with_actor(
             character_name=req.character_name,
-            description=req.description,
+            character_description=req.description,
             industry=req.industry,
             genre=req.genre,
             decade=req.decade,
         )
-        return result
+        # FIX: wrap bare string in a dict so FastAPI returns valid JSON
+        return {"actor": actor_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -387,7 +388,8 @@ async def generate_prompt(req: GeneratePromptRequest):
             race=req.race,
             age=req.age,
         )
-        return prompt
+        # FIX: wrap bare string in a dict so FastAPI returns valid JSON
+        return {"prompt": prompt}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
