@@ -1,12 +1,6 @@
 """
 character_gen.py
 Core logic for the Character Generation app.
-Refactored from CharacterImageGeneration.py with:
-  - progress callbacks for SSE streaming
-  - get_scenario_summaries() — RAG-derived scenario dropdown
-  - generate_prompt_for_scenario() — single call for one scene
-  - get_major_character_names_from_txt() — LLM+sampling fallback when Wiki is unavailable
-  - get_major_character_names_from_txt_hanlp() — HanLP NER pre-filter + single LLM refine (token-efficient)
 """
 
 import os
@@ -22,7 +16,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
-# Load .env file BEFORE reading any environment variables
 load_dotenv()
 
 OLLAMA_MODEL = "Gemma4E4B"
@@ -31,10 +24,6 @@ OLLAMA_HOST = "http://localhost:11434"
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:11434/v1")
 LLM_API_KEY  = os.getenv("LLM_API_KEY",  "ollama")
 LLM_MODEL    = os.getenv("LLM_MODEL",    "Gemma4E4B:latest")
-
-# ---------------------------------------------------------------------------
-# Character source strategy setting
-# ---------------------------------------------------------------------------
 CHARACTER_SOURCE = os.getenv("CHARACTER_SOURCE", "auto")
 
 
@@ -150,7 +139,7 @@ def get_major_character_names_from_txt(txt_filepath: str, book_title: str = "") 
         prompt = (
             f"The following are excerpts from a novel{title_hint}.\n"
             f"Identify all MAJOR characters (protagonists and important recurring figures).\n"
-            f"Return ONLY a comma-separated list of their names — no explanations, no numbering.\n\n"
+            f"Return ONLY a comma-separated list of their names \u2014 no explanations, no numbering.\n\n"
             f"Novel excerpts:\n{sample}"
         )
         response = client.chat.completions.create(
@@ -167,7 +156,7 @@ def get_major_character_names_from_txt(txt_filepath: str, book_title: str = "") 
 
 
 # ---------------------------------------------------------------------------
-# 1c. HanLP NER pre-filter + single LLM refine
+# 1c. HanLP NER — MTL pipeline (tok + ner)
 # ---------------------------------------------------------------------------
 
 def _read_full_txt(txt_filepath: str) -> str:
@@ -180,129 +169,86 @@ def _read_full_txt(txt_filepath: str) -> str:
     return ""
 
 
-def _parse_hanlp_ner_result(result, freq: dict) -> None:
-    """
-    HanLP 2.1.x NER models have inconsistent return formats depending on
-    whether input was a single string or a list, and which model is used.
-    This function handles all known formats robustly:
-
-    Format A — List[List[Tuple[str, str, int, int]]]  (batch input, flat spans per sentence)
-      [[('张伟', 'PERSON', 0, 2), ('北京', 'LOCATION', 3, 5)], [...]]
-
-    Format B — List[Tuple[str, str, int, int]]  (single sentence input)
-      [('张伟', 'PERSON', 0, 2), ('北京', 'LOCATION', 3, 5)]
-
-    Format C — List[str]  (just entity text, no label — some lite models)
-      ['张伟', '李明']
-
-    Format D — dict with 'ner' key  (some pipeline outputs)
-      {'ner': [[('张伟', 'PERSON', 0, 2)]]}
-    """
-    if result is None:
-        return
-
-    # Format D: dict output from pipeline
-    if isinstance(result, dict):
-        result = result.get("ner", result.get("NER", []))
-
-    if not result:
-        return
-
-    first = result[0]
-
-    # Format A: outer list contains inner lists (batch of sentences)
-    if isinstance(first, list):
-        for sent_spans in result:
-            for span in sent_spans:
-                _parse_single_span(span, freq)
-        return
-
-    # Format B: outer list contains tuples/lists directly (single sentence)
-    if isinstance(first, (tuple, list)) and len(first) >= 2 and not isinstance(first[0], (tuple, list)):
-        for span in result:
-            _parse_single_span(span, freq)
-        return
-
-    # Format C: outer list contains plain strings
-    if isinstance(first, str):
-        for entity in result:
-            entity = str(entity).strip()
-            if entity:
-                freq[entity] = freq.get(entity, 0) + 1
-        return
-
-    # Unknown format: attempt recursive descent
-    try:
-        for item in result:
-            _parse_hanlp_ner_result(item, freq)
-    except Exception:
-        pass
-
-
-def _parse_single_span(span, freq: dict) -> None:
-    """Parse a single NER span regardless of whether it's a tuple or list."""
-    try:
-        if isinstance(span, (tuple, list)) and len(span) >= 2:
-            entity = str(span[0]).strip()
-            label = str(span[1])
-            if label == "PERSON" and entity:
-                freq[entity] = freq.get(entity, 0) + 1
-    except Exception:
-        pass
-
-
 def _extract_names_hanlp(text: str) -> list[str]:
     """
-    Use HanLP NER to extract PERSON entities from text.
-    Falls back to jieba posseg if HanLP is unavailable or fails.
+    Extract PERSON names using HanLP's MTL (multi-task) pipeline.
+
+    Why MTL instead of standalone NER models:
+    - MSRA_NER_ELECTRA_SMALL_ZH treats input string as char array (broken in HanLP 2.1.3)
+    - MTL models (CLOSE_TOK_POS_NER_SRL_DEP_SDP_CON_ELECTRA_SMALL_ZH etc.) include
+      a built-in tokenizer, so they correctly handle raw Chinese text.
+
+    MTL output format:
+      The pipeline returns a dict. The 'ner/msra' (or similar) key contains
+      a list of sentences, each sentence is a list of (entity, label) tuples.
+      Example:
+        {
+          'tok/fine': [['\u5218\u5c0f\u9759', '\u63a8', '\u5f00', ...], ...],
+          'ner/msra': [[('\u5218\u5c0f\u9759', 'PERSON')], []],
+        }
+
+    Fallback chain: MTL-ELECTRA-SMALL -> MTL-ELECTRA-BASE -> jieba posseg
     """
     try:
         import hanlp  # type: ignore
 
-        # Split text into sentences — HanLP NER works on sentence lists
-        _SENT_RE = re.compile(r"[。！？!?\n]+")
-        sentences = [s.strip() for s in _SENT_RE.split(text) if s.strip()]
-        if not sentences:
-            sentences = [text]
-
-        _MODEL_CANDIDATES = [
-            "MSRA_NER_ELECTRA_SMALL_ZH",
-            "CTB9_NER_ELECTRA_SMALL",
+        # MTL models that work with raw string input (no pre-tokenization needed)
+        # They include a tokenizer task, so they handle Chinese text correctly.
+        _MTL_CANDIDATES = [
+            "CLOSE_TOK_POS_NER_SRL_DEP_SDP_CON_ELECTRA_SMALL_ZH",
+            "CLOSE_TOK_POS_NER_SRL_DEP_SDP_CON_ELECTRA_BASE_ZH",
         ]
 
-        ner = None
+        pipeline = None
+        ner_key = None
         loaded_model_name = None
-        for model_attr in _MODEL_CANDIDATES:
+
+        for model_attr in _MTL_CANDIDATES:
             try:
-                model_id = getattr(hanlp.pretrained.ner, model_attr, None)
+                model_id = getattr(hanlp.pretrained.mtl, model_attr, None)
                 if model_id is None:
-                    print(f"[HanLP NER] {model_attr} not in hanlp.pretrained.ner, skipping.")
+                    print(f"[HanLP NER] {model_attr} not in hanlp.pretrained.mtl, skipping.")
                     continue
-                ner = hanlp.load(model_id)
+                pipeline = hanlp.load(model_id)
                 loaded_model_name = model_attr
-                print(f"[HanLP NER] Loaded model: {model_attr}")
+                print(f"[HanLP NER] Loaded MTL model: {model_attr}")
                 break
-            except Exception as model_err:
-                print(f"[HanLP NER] Skipping {model_attr}: {model_err}")
+            except Exception as e:
+                print(f"[HanLP NER] Skipping {model_attr}: {e}")
 
-        if ner is None:
-            raise RuntimeError("All HanLP NER models failed to load.")
+        if pipeline is None:
+            raise RuntimeError("All HanLP MTL models failed to load.")
 
-        BATCH = 32  # smaller batch = less likely to OOM
+        # Find the NER output key (e.g. 'ner/msra', 'ner/ontonotes', 'ner/pku')
+        # We probe with a tiny sample first.
+        _probe = pipeline("张伟走入北京大学的大门。")
+        ner_key = next(
+            (k for k in _probe if k.startswith("ner")),
+            None
+        )
+        if ner_key is None:
+            raise RuntimeError(
+                f"MTL model has no 'ner' output key. Available keys: {list(_probe.keys())}"
+            )
+        print(f"[HanLP NER] Using output key: '{ner_key}'")
+
+        # Process text in chunks of ~3000 chars to avoid OOM
+        CHUNK = 3000
         freq: dict[str, int] = {}
-        for i in range(0, len(sentences), BATCH):
-            batch = sentences[i: i + BATCH]
+        for i in range(0, len(text), CHUNK):
+            chunk = text[i: i + CHUNK]
             try:
-                result = ner(batch)
-                _parse_hanlp_ner_result(result, freq)
-            except Exception as batch_err:
-                # Try sentence-by-sentence as last resort
-                for sent in batch:
-                    try:
-                        result = ner(sent)  # single string fallback
-                        _parse_hanlp_ner_result(result, freq)
-                    except Exception:
-                        pass
+                result = pipeline(chunk)
+                # result[ner_key]: List[List[Tuple[str, str]]] — sentences x entities
+                for sent_entities in result.get(ner_key, []):
+                    for item in sent_entities:
+                        # item is (entity_text, label) or [entity_text, label]
+                        if isinstance(item, (tuple, list)) and len(item) >= 2:
+                            entity, label = str(item[0]).strip(), str(item[1])
+                            if label == "PERSON" and len(entity) >= 2:
+                                freq[entity] = freq.get(entity, 0) + 1
+            except Exception as chunk_err:
+                print(f"[HanLP NER] Chunk {i}-{i+CHUNK} error: {chunk_err}")
 
         print(f"[HanLP NER] Extracted {len(freq)} unique names (model: {loaded_model_name}).")
         return [name for name, _ in sorted(freq.items(), key=lambda x: -x[1])]
@@ -312,7 +258,7 @@ def _extract_names_hanlp(text: str) -> list[str]:
     except Exception as e:
         print(f"[HanLP NER] Error: {e}, falling back to jieba posseg.")
 
-    # --- Fallback: jieba posseg ---
+    # --- Fallback: jieba posseg (nr = person name) ---
     try:
         import jieba.posseg as pseg  # type: ignore
         freq: dict[str, int] = {}
@@ -406,19 +352,19 @@ def get_major_character_names(
             return get_major_character_names_from_wiki(book_title)
         return get_major_character_names_from_txt_hanlp(txt_filepath, book_title)
 
-    # auto: wiki → hanlp → txt_extract
+    # auto: wiki -> hanlp -> txt_extract
     wiki_results = get_major_character_names_from_wiki(book_title)
     if wiki_results:
-        print(f"[CharacterSource] auto → wiki succeeded ({len(wiki_results)} chars).")
+        print(f"[CharacterSource] auto \u2192 wiki succeeded ({len(wiki_results)} chars).")
         return wiki_results
 
-    print("[CharacterSource] auto → wiki returned 0 results, falling back to hanlp.")
+    print("[CharacterSource] auto \u2192 wiki returned 0 results, falling back to hanlp.")
     if txt_filepath:
         hanlp_results = get_major_character_names_from_txt_hanlp(txt_filepath, book_title)
         if hanlp_results:
-            print(f"[CharacterSource] auto → hanlp succeeded ({len(hanlp_results)} chars).")
+            print(f"[CharacterSource] auto \u2192 hanlp succeeded ({len(hanlp_results)} chars).")
             return hanlp_results
-        print("[CharacterSource] auto → hanlp returned 0 results, falling back to txt_extract.")
+        print("[CharacterSource] auto \u2192 hanlp returned 0 results, falling back to txt_extract.")
         return get_major_character_names_from_txt(txt_filepath, book_title)
     return []
 
@@ -439,11 +385,11 @@ def build_book_index(txt_filepath: str, progress_cb=None, persist_directory: str
 
     if os.path.exists(persist_directory) and any(os.scandir(persist_directory)):
         if progress_cb:
-            progress_cb("loading_existing", 1, 1, "Loading existing vector index…")
+            progress_cb("loading_existing", 1, 1, "Loading existing vector index\u2026")
         return Chroma(persist_directory=persist_directory, embedding_function=embeddings)
 
     if progress_cb:
-        progress_cb("loading_text", 0, 1, "Loading book text…")
+        progress_cb("loading_text", 0, 1, "Loading book text\u2026")
 
     loader = TextLoader(txt_filepath, encoding="utf-8")
     docs = loader.load()
@@ -460,7 +406,7 @@ def build_book_index(txt_filepath: str, progress_cb=None, persist_directory: str
         vectorstore.add_documents(batch)
         done = min(i + batch_size, total)
         if progress_cb:
-            progress_cb("embedding", done, total, f"Embedding chunks {done} / {total}…")
+            progress_cb("embedding", done, total, f"Embedding chunks {done} / {total}\u2026")
 
     return vectorstore
 

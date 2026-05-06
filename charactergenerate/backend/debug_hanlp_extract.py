@@ -40,7 +40,6 @@ import character_gen as cg
 from character_gen import (
     _read_full_txt,
     _extract_names_hanlp,
-    _parse_hanlp_ner_result,
     get_major_character_names_from_txt_hanlp,
     get_major_character_names_from_txt,
     get_major_character_names,
@@ -71,55 +70,41 @@ def print_config():
 
 def test_hanlp_output_format():
     """
-    Step 0: 用前 10 句话测试 HanLP 模型的实际返回格式。
-    这一步不依赖任何解析逻辑，直接打印原始 ner() 输出，
-    帮助诊断 tensor / 格式问题。
+    Step 0: 用小样本测试 HanLP MTL pipeline 的实际返回格式。
+    直接 pprint 原始输出，不经过任何解析逻辑。
     """
     print("=" * 60)
-    print("[Step 0] HanLP 原始输出格式诊断")
+    print("[Step 0] HanLP MTL pipeline 输出格式诊断")
     print("=" * 60)
 
     try:
         import hanlp  # type: ignore
-        import re
 
         sample = "刘小静推开宿舍的门。付筱竹坐在床上看书。秦大爷从门房走出来。"
-        sentences = re.split(r"[。！？!?\n]+", sample)
-        sentences = [s.strip() for s in sentences if s.strip()]
-        print(f"测试句子（{len(sentences)} 条）: {sentences}")
+        print(f"测试输入: {sample}")
         print()
 
-        _MODEL_CANDIDATES = [
-            "MSRA_NER_ELECTRA_SMALL_ZH",
-            "CTB9_NER_ELECTRA_SMALL",
+        _MTL_CANDIDATES = [
+            "CLOSE_TOK_POS_NER_SRL_DEP_SDP_CON_ELECTRA_SMALL_ZH",
+            "CLOSE_TOK_POS_NER_SRL_DEP_SDP_CON_ELECTRA_BASE_ZH",
         ]
 
-        for model_attr in _MODEL_CANDIDATES:
+        for model_attr in _MTL_CANDIDATES:
+            model_id = getattr(hanlp.pretrained.mtl, model_attr, None)
+            if model_id is None:
+                print(f"  {model_attr}: 不在 hanlp.pretrained.mtl 中，跳过")
+                continue
+            print(f"  加载 MTL 模型: {model_attr} ...")
             try:
-                model_id = getattr(hanlp.pretrained.ner, model_attr, None)
-                if model_id is None:
-                    print(f"  {model_attr}: 不在 hanlp.pretrained.ner 中，跳过")
-                    continue
-                print(f"  加载模型: {model_attr} ...")
-                ner = hanlp.load(model_id)
-
-                print("  --- 输入: List[str] (batch) ---")
-                result_batch = ner(sentences)
-                print(f"  返回类型 : {type(result_batch)}")
-                print(f"  返回内容 :")
-                pprint.pprint(result_batch, indent=4)
-                print()
-
-                print("  --- 输入: str (单句) ---")
-                result_single = ner(sentences[0])
-                print(f"  返回类型 : {type(result_single)}")
-                print(f"  返回内容 :")
-                pprint.pprint(result_single, indent=4)
-                print()
-
-                break  # 找到第一个可用模型就够了
+                pipeline = hanlp.load(model_id)
+                result = pipeline(sample)
+                print(f"  返回类型: {type(result)}")
+                print(f"  返回 keys: {list(result.keys()) if isinstance(result, dict) else 'N/A'}")
+                print(f"  完整返回内容:")
+                pprint.pprint(result, indent=4, width=120)
+                break
             except Exception as e:
-                print(f"  {model_attr} 加载/运行失败: {e}")
+                print(f"  加载失败: {e}")
                 print()
 
     except ImportError:
@@ -128,7 +113,8 @@ def test_hanlp_output_format():
         import traceback
         traceback.print_exc()
 
-    print("[OK] Step 0 诊断完成，请把上方输出贴给开发者。")
+    print()
+    print("[OK] Step 0 诊断完成。")
     print()
 
 
@@ -301,7 +287,6 @@ if __name__ == "__main__":
     print("\n>>> CharacterGeneration — HanLP NER 策略调试脚本 <<<\n")
     print_config()
 
-    # Step 0: 诊断 HanLP 实际输出格式（不依赖解析逻辑）
     test_hanlp_output_format()
 
     ok = test_read_full()
