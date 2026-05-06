@@ -34,10 +34,6 @@ LLM_MODEL    = os.getenv("LLM_MODEL",    "Gemma4E4B:latest")
 
 # ---------------------------------------------------------------------------
 # Character source strategy setting
-# "wiki"        — fetch from Wikipedia (original behaviour, good for well-known books)
-# "txt_extract" — sample the TXT file and use LLM to extract names (good for local/CN novels)
-# "hanlp"       — HanLP NER pre-filter + single LLM refine (token-efficient, good for long CN novels)
-# "auto"        — try Wiki first; if it returns 0 results, fall back to hanlp → txt_extract
 # ---------------------------------------------------------------------------
 CHARACTER_SOURCE = os.getenv("CHARACTER_SOURCE", "auto")
 
@@ -47,11 +43,6 @@ def get_llm_client() -> OpenAI:
 
 
 def _split_names(text: str) -> list[str]:
-    """
-    Split a comma-separated name list returned by the LLM.
-    Handles both English commas (,) and Chinese fullwidth commas (，).
-    Also strips leading numbers/dots like "1. " that some models emit.
-    """
     text = text.replace("，", ",")
     parts = re.split(r"[,\n]+", text)
     names = []
@@ -64,11 +55,10 @@ def _split_names(text: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# 1a. Wikipedia — major character names (original)
+# 1a. Wikipedia
 # ---------------------------------------------------------------------------
 
 def get_major_character_names_from_wiki(book_title: str) -> list[str]:
-    """Query Wikipedia for the book and extract major character names via LLM."""
     try:
         search_query = urllib.parse.quote(book_title)
         search_url = (
@@ -117,7 +107,7 @@ def get_major_character_names_from_wiki(book_title: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# 1b. TXT sampling — major character names
+# 1b. TXT sampling
 # ---------------------------------------------------------------------------
 
 def _sample_txt(txt_filepath: str, total_chars: int = 15000) -> str:
@@ -136,10 +126,10 @@ def _sample_txt(txt_filepath: str, total_chars: int = 15000) -> str:
         return full_text
 
     chunk = total_chars // 3
-    head   = full_text[:chunk]
+    head = full_text[:chunk]
     mid_start = (length // 2) - (chunk // 2)
     middle = full_text[mid_start: mid_start + chunk]
-    tail   = full_text[length - chunk:]
+    tail = full_text[length - chunk:]
 
     return (
         "=== Beginning ===\n" + head +
@@ -177,11 +167,10 @@ def get_major_character_names_from_txt(txt_filepath: str, book_title: str = "") 
 
 
 # ---------------------------------------------------------------------------
-# 1c. HanLP NER pre-filter + single LLM refine (token-efficient)
+# 1c. HanLP NER pre-filter + single LLM refine
 # ---------------------------------------------------------------------------
 
 def _read_full_txt(txt_filepath: str) -> str:
-    """Read the full text of a file, trying common Chinese encodings."""
     for enc in ("utf-8", "gbk", "utf-8-sig"):
         try:
             with open(txt_filepath, "r", encoding=enc, errors="ignore") as f:
@@ -191,32 +180,94 @@ def _read_full_txt(txt_filepath: str) -> str:
     return ""
 
 
+def _parse_hanlp_ner_result(result, freq: dict) -> None:
+    """
+    HanLP 2.1.x NER models have inconsistent return formats depending on
+    whether input was a single string or a list, and which model is used.
+    This function handles all known formats robustly:
+
+    Format A — List[List[Tuple[str, str, int, int]]]  (batch input, flat spans per sentence)
+      [[('张伟', 'PERSON', 0, 2), ('北京', 'LOCATION', 3, 5)], [...]]
+
+    Format B — List[Tuple[str, str, int, int]]  (single sentence input)
+      [('张伟', 'PERSON', 0, 2), ('北京', 'LOCATION', 3, 5)]
+
+    Format C — List[str]  (just entity text, no label — some lite models)
+      ['张伟', '李明']
+
+    Format D — dict with 'ner' key  (some pipeline outputs)
+      {'ner': [[('张伟', 'PERSON', 0, 2)]]}
+    """
+    if result is None:
+        return
+
+    # Format D: dict output from pipeline
+    if isinstance(result, dict):
+        result = result.get("ner", result.get("NER", []))
+
+    if not result:
+        return
+
+    first = result[0]
+
+    # Format A: outer list contains inner lists (batch of sentences)
+    if isinstance(first, list):
+        for sent_spans in result:
+            for span in sent_spans:
+                _parse_single_span(span, freq)
+        return
+
+    # Format B: outer list contains tuples/lists directly (single sentence)
+    if isinstance(first, (tuple, list)) and len(first) >= 2 and not isinstance(first[0], (tuple, list)):
+        for span in result:
+            _parse_single_span(span, freq)
+        return
+
+    # Format C: outer list contains plain strings
+    if isinstance(first, str):
+        for entity in result:
+            entity = str(entity).strip()
+            if entity:
+                freq[entity] = freq.get(entity, 0) + 1
+        return
+
+    # Unknown format: attempt recursive descent
+    try:
+        for item in result:
+            _parse_hanlp_ner_result(item, freq)
+    except Exception:
+        pass
+
+
+def _parse_single_span(span, freq: dict) -> None:
+    """Parse a single NER span regardless of whether it's a tuple or list."""
+    try:
+        if isinstance(span, (tuple, list)) and len(span) >= 2:
+            entity = str(span[0]).strip()
+            label = str(span[1])
+            if label == "PERSON" and entity:
+                freq[entity] = freq.get(entity, 0) + 1
+    except Exception:
+        pass
+
+
 def _extract_names_hanlp(text: str) -> list[str]:
     """
-    Use HanLP to perform Named Entity Recognition and extract PERSON entities.
-
-    HanLP 2.1.x NER models require a sentence list (List[str]) as input —
-    NOT a single raw string. We split the text into sentences first, then
-    batch them into chunks of `BATCH` sentences to avoid OOM.
-
-    Model priority:
-      1. MSRA_NER_ELECTRA_SMALL_ZH  — pure PyTorch, fast, accepts List[str]
-      2. CTB9_NER_ELECTRA_SMALL     — alternative PyTorch NER
-      3. jieba posseg (nr tag)       — zero-dependency fallback
-
-    Returns a deduplicated list of candidate person names sorted by frequency (desc).
+    Use HanLP NER to extract PERSON entities from text.
+    Falls back to jieba posseg if HanLP is unavailable or fails.
     """
     try:
         import hanlp  # type: ignore
 
-        # Split text into sentences (simple rule: split on Chinese sentence-ending punct)
-        # Each element is one sentence string — this is what HanLP NER expects.
+        # Split text into sentences — HanLP NER works on sentence lists
         _SENT_RE = re.compile(r"[。！？!?\n]+")
         sentences = [s.strip() for s in _SENT_RE.split(text) if s.strip()]
+        if not sentences:
+            sentences = [text]
 
         _MODEL_CANDIDATES = [
-            "MSRA_NER_ELECTRA_SMALL_ZH",  # PyTorch-only, most compatible
-            "CTB9_NER_ELECTRA_SMALL",      # alternative PyTorch NER
+            "MSRA_NER_ELECTRA_SMALL_ZH",
+            "CTB9_NER_ELECTRA_SMALL",
         ]
 
         ner = None
@@ -225,7 +276,7 @@ def _extract_names_hanlp(text: str) -> list[str]:
             try:
                 model_id = getattr(hanlp.pretrained.ner, model_attr, None)
                 if model_id is None:
-                    print(f"[HanLP NER] {model_attr} not found in hanlp.pretrained.ner, skipping.")
+                    print(f"[HanLP NER] {model_attr} not in hanlp.pretrained.ner, skipping.")
                     continue
                 ner = hanlp.load(model_id)
                 loaded_model_name = model_attr
@@ -237,24 +288,23 @@ def _extract_names_hanlp(text: str) -> list[str]:
         if ner is None:
             raise RuntimeError("All HanLP NER models failed to load.")
 
-        # Feed sentences in batches of 64 to avoid OOM on long novels
-        BATCH = 64
+        BATCH = 32  # smaller batch = less likely to OOM
         freq: dict[str, int] = {}
         for i in range(0, len(sentences), BATCH):
             batch = sentences[i: i + BATCH]
-            # HanLP NER accepts List[str] and returns List[List[Tuple[str, str, int, int]]]
-            # Each inner list corresponds to one sentence.
-            results = ner(batch)
-            for sent_entities in results:
-                for span in sent_entities:
-                    # span = (entity_text, label, start, end)
-                    entity, label = span[0], span[1]
-                    if label == "PERSON":
-                        entity = entity.strip()
-                        if entity:
-                            freq[entity] = freq.get(entity, 0) + 1
+            try:
+                result = ner(batch)
+                _parse_hanlp_ner_result(result, freq)
+            except Exception as batch_err:
+                # Try sentence-by-sentence as last resort
+                for sent in batch:
+                    try:
+                        result = ner(sent)  # single string fallback
+                        _parse_hanlp_ner_result(result, freq)
+                    except Exception:
+                        pass
 
-        print(f"[HanLP NER] Extracted {len(freq)} unique candidate names (model: {loaded_model_name}).")
+        print(f"[HanLP NER] Extracted {len(freq)} unique names (model: {loaded_model_name}).")
         return [name for name, _ in sorted(freq.items(), key=lambda x: -x[1])]
 
     except ImportError:
@@ -262,7 +312,7 @@ def _extract_names_hanlp(text: str) -> list[str]:
     except Exception as e:
         print(f"[HanLP NER] Error: {e}, falling back to jieba posseg.")
 
-    # --- Fallback: jieba posseg (nr = person name) ---
+    # --- Fallback: jieba posseg ---
     try:
         import jieba.posseg as pseg  # type: ignore
         freq: dict[str, int] = {}
@@ -274,7 +324,7 @@ def _extract_names_hanlp(text: str) -> list[str]:
         print(f"[jieba NER] Extracted {len(freq)} unique candidate names.")
         return [name for name, _ in sorted(freq.items(), key=lambda x: -x[1])]
     except ImportError:
-        print("[jieba NER] jieba not installed either. Returning empty list.")
+        print("[jieba NER] jieba not installed either.")
         return []
     except Exception as e:
         print(f"[jieba NER] Error: {e}")
@@ -286,18 +336,6 @@ def get_major_character_names_from_txt_hanlp(
     book_title: str = "",
     max_candidates: int = 80,
 ) -> list[str]:
-    """
-    Token-efficient character extraction strategy:
-
-    Step 1 — HanLP / jieba NER (0 LLM tokens):
-        Read the FULL text locally and extract all PERSON-tagged entities.
-        Deduplicate and sort by frequency. Keep at most `max_candidates` names.
-
-    Step 2 — Single LLM call (~500–1500 tokens total):
-        Send only the candidate name list to the LLM.
-        Ask it to: remove non-character noise, merge aliases/titles for the
-        same character, and return the final clean list.
-    """
     try:
         full_text = _read_full_txt(txt_filepath)
         if not full_text:
@@ -343,7 +381,7 @@ def get_major_character_names_from_txt_hanlp(
 
 
 # ---------------------------------------------------------------------------
-# 1d. Unified entry point — respects CHARACTER_SOURCE setting
+# 1d. Unified entry point
 # ---------------------------------------------------------------------------
 
 def get_major_character_names(
@@ -351,18 +389,6 @@ def get_major_character_names(
     txt_filepath: str = "",
     source: str = None,
 ) -> list[str]:
-    """
-    Unified character-name resolver.
-
-    Args:
-        book_title:   Title of the book (used for Wiki and as a hint for LLM).
-        txt_filepath: Path to the local .txt file (required for txt_extract / hanlp / auto).
-        source:       Override CHARACTER_SOURCE env var for this call.
-                      One of: "wiki" | "txt_extract" | "hanlp" | "auto"
-
-    Returns:
-        List of character name strings.
-    """
     strategy = (source or CHARACTER_SOURCE).lower()
 
     if strategy == "wiki":
@@ -380,8 +406,7 @@ def get_major_character_names(
             return get_major_character_names_from_wiki(book_title)
         return get_major_character_names_from_txt_hanlp(txt_filepath, book_title)
 
-    # strategy == "auto" (default)
-    # Priority: wiki → hanlp → txt_extract
+    # auto: wiki → hanlp → txt_extract
     wiki_results = get_major_character_names_from_wiki(book_title)
     if wiki_results:
         print(f"[CharacterSource] auto → wiki succeeded ({len(wiki_results)} chars).")
@@ -403,10 +428,6 @@ def get_major_character_names(
 # ---------------------------------------------------------------------------
 
 def build_book_index(txt_filepath: str, progress_cb=None, persist_directory: str = None):
-    """
-    Build (or load) a Chroma vector index for the book.
-    progress_cb(stage, n, total, message) is called at each step.
-    """
     if persist_directory is None:
         book_name = os.path.splitext(os.path.basename(txt_filepath))[0]
         persist_directory = os.path.join(
@@ -435,7 +456,7 @@ def build_book_index(txt_filepath: str, progress_cb=None, persist_directory: str
 
     batch_size = 50
     for i in range(0, total, batch_size):
-        batch = splits[i : i + batch_size]
+        batch = splits[i: i + batch_size]
         vectorstore.add_documents(batch)
         done = min(i + batch_size, total)
         if progress_cb:
@@ -449,7 +470,6 @@ def build_book_index(txt_filepath: str, progress_cb=None, persist_directory: str
 # ---------------------------------------------------------------------------
 
 def get_character_situations(vectorstore, character_name: str, k: int = 6) -> list[str]:
-    """Retrieve the top-k chunks most relevant to scenes featuring `character_name`."""
     query = (
         f"Describe a specific scene involving {character_name}, "
         f"including their location, actions, and what they are wearing."
@@ -459,11 +479,6 @@ def get_character_situations(vectorstore, character_name: str, k: int = 6) -> li
 
 
 def get_scenario_summaries(vectorstore, character_name: str) -> list[dict]:
-    """
-    Retrieve k=6 RAG scenes for the character and ask the LLM to distill each
-    into a short one-sentence label.
-    Returns: [{"label": str, "context": str}, ...]
-    """
     situations = get_character_situations(vectorstore, character_name, k=6)
     client = get_llm_client()
     summaries = []
@@ -487,7 +502,6 @@ def get_scenario_summaries(vectorstore, character_name: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def analyze_character(book_text: str, character_name: str) -> str:
-    """Extract a structured character description from a book excerpt."""
     client = get_llm_client()
     prompt = f"""Analyze the character '{character_name}' from the book. Extract and describe:
 - Physical appearance (hair colour, eye colour, height, build, approximate age)
@@ -515,7 +529,6 @@ def cast_character_with_actor(
     genre: str = "",
     decade: str = "2026"
 ) -> str:
-    """Suggest a real-world actor from the given industry and decade to portray the character in a specific genre."""
     client = get_llm_client()
     genre_context = f"This is for a {genre} adaptation." if genre else ""
     decade_context = f"The production is set in/filmed during the {decade}s." if decade and decade != "2026" else "The production is modern (2026)."
@@ -552,10 +565,6 @@ def generate_prompt_for_scenario(
     race: str = "",
     age: str = "",
 ) -> str:
-    """
-    Build a Z-Image-Turbo / Stable Diffusion prompt for one character scene.
-    Uses the (possibly user-edited) description and actor name.
-    """
     client = get_llm_client()
 
     overrides = []
@@ -579,8 +588,7 @@ def generate_prompt_for_scenario(
 
     actor_instruction = (
         f"The character's face should closely resemble the actor: {actor_name}."
-        if actor_name
-        else ""
+        if actor_name else ""
     )
 
     genre_instruction = f"Genre: {genre}" if genre else ""
