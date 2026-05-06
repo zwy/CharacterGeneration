@@ -323,11 +323,16 @@ def get_major_character_names_from_txt_hanlp(
         )
 
         client = get_llm_client()
+        print(f"[HanLP Strategy] Calling LLM ({LLM_MODEL}) for name refinement, please wait...", flush=True)
+        import time as _time
+        _t0 = _time.time()
         response = client.chat.completions.create(
             model=LLM_MODEL,
             messages=[{"role": "user", "content": prompt}]
         )
+        print(f"[HanLP Strategy] LLM responded in {_time.time() - _t0:.1f}s.", flush=True)
         raw = (response.choices[0].message.content or "").strip()
+        print(f"[HanLP Strategy] Raw LLM output: {raw[:300]}", flush=True)
         raw = raw.replace("、", ",")
         characters = _split_names(raw)
         print(f"[HanLP Strategy] Final character list ({len(characters)}): {characters}")
