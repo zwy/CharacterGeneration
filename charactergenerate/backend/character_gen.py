@@ -88,7 +88,7 @@ def get_major_character_names_from_wiki(book_title: str) -> list[str]:
             model=LLM_MODEL,
             messages=[{"role": "user", "content": prompt}]
         )
-        return _split_names(response.choices[0].message.content)
+        return _split_names(response.choices[0].message.content or "")
 
     except Exception as e:
         print(f"[Wikipedia] Error: {e}")
@@ -146,7 +146,7 @@ def get_major_character_names_from_txt(txt_filepath: str, book_title: str = "") 
             model=LLM_MODEL,
             messages=[{"role": "user", "content": prompt}]
         )
-        characters = _split_names(response.choices[0].message.content)
+        characters = _split_names(response.choices[0].message.content or "")
         print(f"[TXT Extract] Found {len(characters)} characters: {characters}")
         return characters
 
@@ -235,8 +235,10 @@ def _extract_names_hanlp(text: str) -> list[str]:
         # Process text in chunks of ~3000 chars to avoid OOM
         CHUNK = 3000
         freq: dict[str, int] = {}
-        for i in range(0, len(text), CHUNK):
+        total_chunks = (len(text) + CHUNK - 1) // CHUNK
+        for idx, i in enumerate(range(0, len(text), CHUNK), 1):
             chunk = text[i: i + CHUNK]
+            print(f"[HanLP NER] Processing chunk {idx}/{total_chunks} ...", flush=True)
             try:
                 result = pipeline(chunk)
                 # result[ner_key]: List[List[Tuple[str, str]]] — sentences x entities
@@ -315,7 +317,7 @@ def get_major_character_names_from_txt_hanlp(
             model=LLM_MODEL,
             messages=[{"role": "user", "content": prompt}]
         )
-        raw = response.choices[0].message.content.strip()
+        raw = (response.choices[0].message.content or "").strip()
         raw = raw.replace("、", ",")
         characters = _split_names(raw)
         print(f"[HanLP Strategy] Final character list ({len(characters)}): {characters}")
@@ -333,7 +335,7 @@ def get_major_character_names_from_txt_hanlp(
 def get_major_character_names(
     book_title: str,
     txt_filepath: str = "",
-    source: str = None,
+    source: str | None = None,
 ) -> list[str]:
     strategy = (source or CHARACTER_SOURCE).lower()
 
