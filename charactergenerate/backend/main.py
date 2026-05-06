@@ -210,7 +210,7 @@ async def load_book(req: LoadBookRequest):
             req.book_path = alt_path
         else:
             raise HTTPException(
-                status_code=400,
+                status_code=400, 
                 detail=f"Book file not found. Checked: {req.book_path} and {alt_path}"
             )
 
@@ -319,133 +319,202 @@ async def character_details(req: CharacterDetailsRequest):
         )
 
     try:
+        # Retrieve a top scene for baseline description
         situations = get_character_situations(
-            vectorstore=state["vectorstore"],
-            character_name=req.character_name,
-            k=6,
+            state["vectorstore"], req.character_name, k=1
         )
-        book_text = "\n\n".join(situations)
+        context_text = situations[0] if situations else ""
+        description = analyze_character(context_text, req.character_name)
 
-        description = analyze_character(
-            book_text=book_text,
-            character_name=req.character_name,
-        )
+        # Get RAG-derived scenario list (6 scenes, each summarised)
+        scenarios = get_scenario_summaries(state["vectorstore"], req.character_name)
 
-        scenarios = get_scenario_summaries(
-            vectorstore=state["vectorstore"],
-            character_name=req.character_name,
-        )
-
-        return {
-            "description": description,
-            "scenarios": scenarios,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"description": description, "scenarios": scenarios}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"LLM analytics failed: {exc}")
 
 
 @app.post("/api/cast-actor")
 async def cast_actor(req: CastActorRequest):
-    if state["vectorstore"] is None:
-        raise HTTPException(
-            status_code=400,
-            detail="No book loaded. Call /api/load-book first.",
-        )
-
     try:
-        # FIX: character_gen.py uses `character_description`, not `description`
-        actor_name = cast_character_with_actor(
-            character_name=req.character_name,
-            character_description=req.description,
-            industry=req.industry,
+        actor = cast_character_with_actor(
+            req.character_name, 
+            req.description, 
+            req.industry,
             genre=req.genre,
-            decade=req.decade,
+            decade=req.decade
         )
-        # FIX: wrap bare string in a dict so FastAPI returns valid JSON
-        return {"actor": actor_name}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"actor_name": actor}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Casting failed: {exc}")
 
 
 @app.post("/api/generate-prompt")
 async def generate_prompt(req: GeneratePromptRequest):
-    if state["vectorstore"] is None:
-        raise HTTPException(
-            status_code=400,
-            detail="No book loaded. Call /api/load-book first.",
-        )
-
     try:
-        prompt = generate_prompt_for_scenario(
-            vectorstore=state["vectorstore"],
-            character_name=req.character_name,
-            description=req.description,
-            scenario_context=req.scenario_context,
+        result = generate_prompt_for_scenario(
+            req.character_name,
+            req.description,
+            req.scenario_context,
             actor_name=req.actor_name,
             genre=req.genre,
             decade=req.decade,
             gender=req.gender,
             race=req.race,
-            age=req.age,
+            age=req.age
         )
-        # FIX: wrap bare string in a dict so FastAPI returns valid JSON
-        return {"prompt": prompt}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"prompt": result}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Prompt generation failed: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# ComfyUI endpoints
+# ---------------------------------------------------------------------------
+
+# In-memory store: prompt_id -> image bytes (single-user dev app)
+comfy_image_store: dict[str, tuple[bytes, str]] = {}
 
 
 @app.post("/api/comfyui/test")
 async def comfyui_test(req: ComfyUITestRequest):
-    """Ping the ComfyUI server to check it's up."""
+    """Verify that a ComfyUI instance is reachable."""
     try:
-        result = test_connection(req.comfy_url)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        stats = await asyncio.get_event_loop().run_in_executor(
+            None, test_connection, req.comfy_url
+        )
+        return {"ok": True, "stats": stats}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
 
 @app.post("/api/comfyui/generate")
 async def comfyui_generate(req: ComfyUIGenerateRequest):
     """
-    Inject prompt, queue it in ComfyUI, and stream progress via SSE.
+    Inject the prompt into the workflow, queue it on ComfyUI, poll for
+    completion, cache the image, and stream SSE progress events.
+
+    SSE event shapes:
+      {"status": "queued",     "prompt_id": "...", "message": "..."}
+      {"status": "polling",   "prompt_id": "...", "message": "..."}
+      {"status": "done",      "prompt_id": "...", "message": "..."}
+      {"status": "error",     "message": "..."}
     """
-    try:
-        workflow = inject_prompt_into_workflow(
-            workflow_json=req.workflow_json,
-            prompt_text=req.prompt_text,
-            node_id=req.node_id,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Workflow error: {e}")
-
-    try:
-        prompt_id = queue_prompt(req.comfy_url, workflow)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"ComfyUI queue error: {e}")
-
-    async def stream():
+    async def event_stream():
         try:
-            for event in poll_until_done(req.comfy_url, prompt_id):
-                yield f"data: {json.dumps(event)}\n\n"
-                await asyncio.sleep(0)
-        except Exception as e:
-            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+            # Parse workflow
+            try:
+                workflow = json.loads(req.workflow_json)
+            except json.JSONDecodeError as e:
+                yield f"data: {json.dumps({'status': 'error', 'message': f'Invalid workflow JSON: {e}'})}\n\n"
+                return
+
+            # Inject prompt
+            try:
+                modified_wf, used_node = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: inject_prompt_into_workflow(workflow, req.prompt_text, req.node_id),
+                )
+            except ValueError as e:
+                yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+                return
+
+            yield f"data: {json.dumps({'status': 'injecting', 'message': f'Prompt injected into node {used_node}. Queueing…'})}\n\n"
+
+            # Queue
+            try:
+                prompt_id = await asyncio.get_event_loop().run_in_executor(
+                    None, queue_prompt, req.comfy_url, modified_wf
+                )
+            except RuntimeError as e:
+                yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+                return
+
+            yield f"data: {json.dumps({'status': 'queued', 'prompt_id': prompt_id, 'message': f'Queued as {prompt_id[:8]}… Waiting for ComfyUI…'})}\n\n"
+
+            # Poll
+            poll_count = 0
+            poll_limit = 100
+            while poll_count < poll_limit:
+                poll_count += 1
+                yield f"data: {json.dumps({'status': 'polling', 'prompt_id': prompt_id, 'message': f'Generating image… (poll #{poll_count})'})}\n\n"
+                try:
+                    history_entry = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: _single_poll(req.comfy_url, prompt_id),
+                    )
+                    if history_entry is None:  # not done yet
+                        await asyncio.sleep(2)
+                        continue
+                except RuntimeError as e:
+                    yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+                    return
+                break
+            else:
+                yield f"data: {json.dumps({'status': 'error', 'message': f'Polling timed out after {poll_limit} attempts.'})}\n\n"
+                return
+
+            # Fetch image
+            yield f"data: {json.dumps({'status': 'fetching', 'prompt_id': prompt_id, 'message': 'Downloading image from ComfyUI…'})}\n\n"
+            try:
+                img_bytes, filename = await asyncio.get_event_loop().run_in_executor(
+                    None, get_output_image_bytes, req.comfy_url, history_entry
+                )
+            except RuntimeError as e:
+                yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+                return
+
+            # Cache and signal done
+            comfy_image_store[prompt_id] = (img_bytes, filename)
+            yield f"data: {json.dumps({'status': 'done', 'prompt_id': prompt_id, 'filename': filename, 'message': 'Image ready!'})}\n\n"
+
+        except Exception as exc:
+            yield f"data: {json.dumps({'status': 'error', 'message': f'Unexpected error: {exc}'})}\n\n"
 
     return StreamingResponse(
-        stream(),
+        event_stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
-@app.get("/api/comfyui/image/{prompt_id}")
-async def get_comfyui_image(prompt_id: str, comfy_url: str):
-    """Proxy-fetch the finished image from ComfyUI."""
+def _single_poll(comfy_url: str, prompt_id: str) -> dict:
+    """
+    One-shot poll of /history/{prompt_id}.
+    Returns the history entry if done, returns None if still running,
+    raises RuntimeError on error.
+    """
+    url = comfy_url.rstrip("/") + f"/history/{prompt_id}"
+    req = urllib.request.Request(url, headers={"Accept": "application/json"})
     try:
-        img_bytes = get_output_image_bytes(comfy_url, prompt_id)
-        return Response(content=img_bytes, media_type="image/png")
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return None
+
+    if prompt_id not in data:
+        return None
+
+    entry = data[prompt_id]
+    status = entry.get("status", {})
+    msgs = status.get("messages", [])
+    for msg_type, msg_data in msgs:
+        if msg_type == "execution_error":
+            raise RuntimeError(f"ComfyUI execution error: {msg_data}")
+    if status.get("completed", False) or "outputs" in entry:
+        return entry
+    return None
+
+
+@app.get("/api/comfyui/image/{prompt_id}")
+async def comfyui_image(prompt_id: str):
+    """Serve the cached image for a completed ComfyUI job."""
+    if prompt_id not in comfy_image_store:
+        raise HTTPException(status_code=404, detail="Image not found. Generate first.")
+    img_bytes, filename = comfy_image_store[prompt_id]
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "png"
+    media_type = "image/jpeg" if ext in ("jpg", "jpeg") else "image/png"
+    return Response(content=img_bytes, media_type=media_type)
 
 
 if __name__ == "__main__":
