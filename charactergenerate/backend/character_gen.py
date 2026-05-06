@@ -18,9 +18,6 @@ from langchain_huggingface import HuggingFaceEmbeddings
 
 load_dotenv()
 
-OLLAMA_MODEL = "Gemma4E4B"
-OLLAMA_HOST  = "http://localhost:11434"
-
 # ---------------------------------------------------------------------------
 # LLM 配置 — 通过 .env 控制
 #
