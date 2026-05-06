@@ -242,10 +242,19 @@ def _extract_names_hanlp(text: str) -> list[str]:
             print(f"[HanLP NER] Processing chunk {idx}/{total_chunks} ...", flush=True)
             try:
                 result = pipeline(chunk)
-                # result[ner_key]: List[List[Tuple[str, str]]] — sentences x entities
-                for sent_entities in result.get(ner_key, []):
-                    for item in sent_entities:
-                        # item is (entity_text, label) or [entity_text, label]
+                raw_entities = result.get(ner_key, [])
+                # HanLP MTL 有两种输出格式：
+                # 扁平格式（单字符串输入）: [(entity, label, start, end), ...]
+                # 嵌套格式（列表输入）:     [[(entity, label), ...], [...], ...]
+                # 通过检查第一个元素的首项来区分
+                if raw_entities and isinstance(raw_entities[0], (tuple, list)):
+                    if isinstance(raw_entities[0][0], str):
+                        # 扁平格式：每个元素是 (entity, label, start, end)
+                        entity_list = raw_entities
+                    else:
+                        # 嵌套格式：展平句子列表
+                        entity_list = [item for sent in raw_entities for item in sent]
+                    for item in entity_list:
                         if isinstance(item, (tuple, list)) and len(item) >= 2:
                             entity, label = str(item[0]).strip(), str(item[1])
                             if label == "PERSON" and len(entity) >= 2:
