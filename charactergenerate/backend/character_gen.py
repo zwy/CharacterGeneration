@@ -5,6 +5,7 @@ Refactored from CharacterImageGeneration.py with:
   - progress callbacks for SSE streaming
   - get_scenario_summaries() — RAG-derived scenario dropdown
   - generate_prompt_for_scenario() — single call for one scene
+  - get_major_character_names_from_txt() — LLM+sampling fallback when Wiki is unavailable
 """
 
 import os
@@ -29,16 +30,24 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:11434/v1")
 LLM_API_KEY  = os.getenv("LLM_API_KEY",  "ollama")
 LLM_MODEL    = os.getenv("LLM_MODEL",    "Gemma4E4B:latest")
 
+# ---------------------------------------------------------------------------
+# Character source strategy setting
+# "wiki"        — fetch from Wikipedia (original behaviour, good for well-known books)
+# "txt_extract" — sample the TXT file and use LLM to extract names (good for local/CN novels)
+# "auto"        — try Wiki first; if it returns 0 results, fall back to txt_extract
+# ---------------------------------------------------------------------------
+CHARACTER_SOURCE = os.getenv("CHARACTER_SOURCE", "auto")
+
 
 def get_llm_client() -> OpenAI:
     return OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY)
 
 
 # ---------------------------------------------------------------------------
-# 1. Wikipedia — major character names
+# 1a. Wikipedia — major character names (original)
 # ---------------------------------------------------------------------------
 
-def get_major_character_names(book_title: str) -> list[str]:
+def get_major_character_names_from_wiki(book_title: str) -> list[str]:
     """Query Wikipedia for the book and extract major character names via LLM."""
     try:
         search_query = urllib.parse.quote(book_title)
@@ -87,6 +96,120 @@ def get_major_character_names(book_title: str) -> list[str]:
     except Exception as e:
         print(f"[Wikipedia] Error: {e}")
         return []
+
+
+# ---------------------------------------------------------------------------
+# 1b. TXT sampling — major character names (new LLM+sampling strategy)
+# ---------------------------------------------------------------------------
+
+def _sample_txt(txt_filepath: str, total_chars: int = 15000) -> str:
+    """
+    Sample text from beginning, middle, and end of the file.
+    Returns a combined excerpt of roughly `total_chars` characters.
+    Handles UTF-8 and GBK encodings automatically.
+    """
+    for enc in ("utf-8", "gbk", "utf-8-sig"):
+        try:
+            with open(txt_filepath, "r", encoding=enc, errors="ignore") as f:
+                full_text = f.read()
+            break
+        except Exception:
+            continue
+    else:
+        return ""
+
+    length = len(full_text)
+    if length <= total_chars:
+        return full_text
+
+    chunk = total_chars // 3
+    head   = full_text[:chunk]
+    mid_start = (length // 2) - (chunk // 2)
+    middle = full_text[mid_start: mid_start + chunk]
+    tail   = full_text[length - chunk:]
+
+    return (
+        "=== Beginning ===\n" + head +
+        "\n\n=== Middle ===\n" + middle +
+        "\n\n=== End ===\n" + tail
+    )
+
+
+def get_major_character_names_from_txt(txt_filepath: str, book_title: str = "") -> list[str]:
+    """
+    Sample the TXT file from head / middle / tail, then ask the LLM to
+    extract major character names.  Works for Chinese web novels and any
+    local file that has no Wikipedia entry.
+    """
+    try:
+        sample = _sample_txt(txt_filepath)
+        if not sample:
+            print("[TXT Extract] Could not read file.")
+            return []
+
+        title_hint = f" (titled '{book_title}')" if book_title else ""
+        client = get_llm_client()
+        prompt = (
+            f"The following are excerpts from a novel{title_hint}.\n"
+            f"Identify all MAJOR characters (protagonists and important recurring figures).\n"
+            f"Return ONLY a comma-separated list of their names — no explanations, no numbering.\n\n"
+            f"Novel excerpts:\n{sample}"
+        )
+        response = client.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        text_response = response.choices[0].message.content
+        characters = [n.strip() for n in text_response.split(",") if n.strip()]
+        print(f"[TXT Extract] Found {len(characters)} characters: {characters}")
+        return characters
+
+    except Exception as e:
+        print(f"[TXT Extract] Error: {e}")
+        return []
+
+
+# ---------------------------------------------------------------------------
+# 1c. Unified entry point — respects CHARACTER_SOURCE setting
+# ---------------------------------------------------------------------------
+
+def get_major_character_names(
+    book_title: str,
+    txt_filepath: str = "",
+    source: str = None,
+) -> list[str]:
+    """
+    Unified character-name resolver.
+
+    Args:
+        book_title:   Title of the book (used for Wiki and as a hint for LLM).
+        txt_filepath: Path to the local .txt file (required for txt_extract / auto).
+        source:       Override CHARACTER_SOURCE env var for this call.
+                      One of: "wiki" | "txt_extract" | "auto"
+
+    Returns:
+        List of character name strings.
+    """
+    strategy = (source or CHARACTER_SOURCE).lower()
+
+    if strategy == "wiki":
+        return get_major_character_names_from_wiki(book_title)
+
+    if strategy == "txt_extract":
+        if not txt_filepath:
+            print("[CharacterSource] txt_extract requires txt_filepath. Falling back to wiki.")
+            return get_major_character_names_from_wiki(book_title)
+        return get_major_character_names_from_txt(txt_filepath, book_title)
+
+    # strategy == "auto" (default)
+    wiki_results = get_major_character_names_from_wiki(book_title)
+    if wiki_results:
+        print(f"[CharacterSource] auto → wiki succeeded ({len(wiki_results)} chars).")
+        return wiki_results
+    print("[CharacterSource] auto → wiki returned 0 results, falling back to txt_extract.")
+    if txt_filepath:
+        return get_major_character_names_from_txt(txt_filepath, book_title)
+    return []
 
 
 # ---------------------------------------------------------------------------
