@@ -195,9 +195,13 @@ def _extract_names_hanlp(text: str) -> list[str]:
     """
     Use HanLP to perform Named Entity Recognition and extract PERSON entities.
 
-    Model priority (all pure PyTorch, no TensorFlow required):
-      1. MSRA_NER_ELECTRA_SMALL_ZH  — fast, small, PyTorch-only  ✓
-      2. MSRA_NER_BERT_BASE_ZH      — accurate but needs TF; skip if TF absent
+    HanLP 2.1.x NER models require a sentence list (List[str]) as input —
+    NOT a single raw string. We split the text into sentences first, then
+    batch them into chunks of `BATCH` sentences to avoid OOM.
+
+    Model priority:
+      1. MSRA_NER_ELECTRA_SMALL_ZH  — pure PyTorch, fast, accepts List[str]
+      2. CTB9_NER_ELECTRA_SMALL     — alternative PyTorch NER
       3. jieba posseg (nr tag)       — zero-dependency fallback
 
     Returns a deduplicated list of candidate person names sorted by frequency (desc).
@@ -205,18 +209,26 @@ def _extract_names_hanlp(text: str) -> list[str]:
     try:
         import hanlp  # type: ignore
 
-        # Ordered list of models to try: prefer PyTorch-only ones first.
-        # ELECTRA_SMALL is pure PyTorch and works on Python 3.11 + TF 2.18.
+        # Split text into sentences (simple rule: split on Chinese sentence-ending punct)
+        # Each element is one sentence string — this is what HanLP NER expects.
+        _SENT_RE = re.compile(r"[。！？!?\n]+")
+        sentences = [s.strip() for s in _SENT_RE.split(text) if s.strip()]
+
         _MODEL_CANDIDATES = [
-            "MSRA_NER_ELECTRA_SMALL_ZH",  # PyTorch-only, fast
-            "MSRA_NER_BERT_BASE_ZH",      # requires TF ≤ 2.13
+            "MSRA_NER_ELECTRA_SMALL_ZH",  # PyTorch-only, most compatible
+            "CTB9_NER_ELECTRA_SMALL",      # alternative PyTorch NER
         ]
 
         ner = None
+        loaded_model_name = None
         for model_attr in _MODEL_CANDIDATES:
             try:
-                model_id = getattr(hanlp.pretrained.ner, model_attr)
+                model_id = getattr(hanlp.pretrained.ner, model_attr, None)
+                if model_id is None:
+                    print(f"[HanLP NER] {model_attr} not found in hanlp.pretrained.ner, skipping.")
+                    continue
                 ner = hanlp.load(model_id)
+                loaded_model_name = model_attr
                 print(f"[HanLP NER] Loaded model: {model_attr}")
                 break
             except Exception as model_err:
@@ -225,18 +237,24 @@ def _extract_names_hanlp(text: str) -> list[str]:
         if ner is None:
             raise RuntimeError("All HanLP NER models failed to load.")
 
-        CHUNK = 5000
+        # Feed sentences in batches of 64 to avoid OOM on long novels
+        BATCH = 64
         freq: dict[str, int] = {}
-        for i in range(0, len(text), CHUNK):
-            chunk = text[i: i + CHUNK]
-            entities = ner(chunk)
-            for entity, label, *_ in entities:
-                if label == "PERSON":
-                    entity = entity.strip()
-                    if entity:
-                        freq[entity] = freq.get(entity, 0) + 1
+        for i in range(0, len(sentences), BATCH):
+            batch = sentences[i: i + BATCH]
+            # HanLP NER accepts List[str] and returns List[List[Tuple[str, str, int, int]]]
+            # Each inner list corresponds to one sentence.
+            results = ner(batch)
+            for sent_entities in results:
+                for span in sent_entities:
+                    # span = (entity_text, label, start, end)
+                    entity, label = span[0], span[1]
+                    if label == "PERSON":
+                        entity = entity.strip()
+                        if entity:
+                            freq[entity] = freq.get(entity, 0) + 1
 
-        print(f"[HanLP NER] Extracted {len(freq)} unique candidate names.")
+        print(f"[HanLP NER] Extracted {len(freq)} unique candidate names (model: {loaded_model_name}).")
         return [name for name, _ in sorted(freq.items(), key=lambda x: -x[1])]
 
     except ImportError:
