@@ -81,12 +81,17 @@ export default function BookLoader({ status, setStatus, progress, setProgress, o
     {
       value: 'auto',
       label: 'Auto',
-      desc: 'Try Wikipedia first, fall back to local file',
+      desc: 'Try Wikipedia first → HanLP NER → local file (LLM) — recommended default',
+    },
+    {
+      value: 'hanlp',
+      label: 'HanLP NER',
+      desc: 'Use HanLP MTL model for Chinese NER — best for Chinese web novels, no LLM calls needed',
     },
     {
       value: 'txt_extract',
       label: 'Local File (LLM)',
-      desc: 'Sample the uploaded file and extract names via LLM — best for Chinese/local novels',
+      desc: 'Sample the uploaded file and extract names via LLM — best for local novels without HanLP',
     },
     {
       value: 'wiki',

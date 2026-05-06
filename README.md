@@ -8,8 +8,12 @@ A powerful, AI-driven pipeline for generating cinematic character portraits dire
 
 ## ✨ Features
 
-- **📖 Intelligent Book Parsing**: Automatically load `.txt` books and build a high-performance vector index using ChromaDB and HuggingFace Embeddings.
-- **🔍 Wikipedia Augmentation**: Scrapes Wikipedia to identify major characters and establish baseline personas before the book analysis even begins.
+- **📖 Intelligent Book Parsing**: Automatically load `.txt` and `.epub` books and build a high-performance vector index using ChromaDB and HuggingFace Embeddings.
+- **🔍 Flexible Character Extraction**: Four strategies to identify major characters:
+  - **Auto** (default) — tries Wikipedia → HanLP NER → LLM sampling, fully automatic
+  - **HanLP NER** — uses a local HanLP MTL pipeline (no LLM needed); best for Chinese web novels (`pip install hanlp`)
+  - **Local File (LLM)** — samples head/middle/tail of the file and uses the LLM to extract names; works without HanLP
+  - **Wikipedia** — scrapes Wikipedia; best for well-known English novels
 - **🤖 Deep RAG Analysis**: Retrieves specific scenes from the book to understand character appearance, clothing, and environment in different contexts.
 - **🎬 AI Casting Director**: Suggests real-world actors (Hollywood, Bollywood, etc.) to serve as the visual "base" for the character, with support for specific decades (e.g., 1920s Noir, 1980s Sci-Fi).
 - **🎭 Genre Adaptation**: Dynamically modifies clothing, hairstyles, and cinematic styles to fit genres (Horror, Cyberpunk, Fantasy, etc.) while preserving the character's core identity (age, ethnicity, facial features).
@@ -22,6 +26,7 @@ A powerful, AI-driven pipeline for generating cinematic character portraits dire
 - **Vector DB**: ChromaDB
 - **Embeddings**: HuggingFace (`all-MiniLM-L6-v2`)
 - **LLM**: Ollama (`Gemma4E4B:latest` or similar)
+- **NER (optional)**: HanLP (`pip install hanlp`) — recommended for Chinese novels
 - **Frontend**: React, Vite, Vanilla CSS
 - **Image Gen**: ComfyUI (Local Instance)
 
@@ -50,7 +55,12 @@ cd CharacterGeneration/charactergenerate
     ```
 1.  **ComfyUI**: Have a local [ComfyUI](https://github.com/comfyanonymous/ComfyUI) instance running.
 2.  **Python & Node**: Ensure you have Python 3.10+ and Node.js installed.
-3.  **https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes**  === needs to be installed in ComfyUI/custom_nodes    ```
+3.  **https://github.com/martin-rizzo/ComfyUI-ZImagePowerNodes**  === needs to be installed in ComfyUI/custom_nodes
+4.  **HanLP** *(optional, recommended for Chinese novels)*:
+    ```bash
+    pip install hanlp
+    ```
+    If not installed, the app falls back to LLM-based extraction automatically.
 
 
 ### Running the App
@@ -66,7 +76,11 @@ Alternatively, run them manually:
 
 ## 📖 How to Use
 
-1.  **Load a Book**: Point the app to a `.txt` file of a novel. The system will build a vector index and fetch character names from Wikipedia.
+1.  **Load a Book**: Upload a `.txt` or `.epub` file, enter the book name, and choose a **Character List Source**:
+    - *Auto* (default) — tries Wikipedia, then HanLP NER, then LLM extraction automatically
+    - *HanLP NER* — recommended for Chinese web novels; requires `pip install hanlp`
+    - *Local File (LLM)* — LLM-based name extraction; works without HanLP
+    - *Wikipedia* — best for well-known English books
 2.  **Choose a Character**: Select a character from the identified list.
 3.  **Analyze & Customize**: The AI will generate a description and retrieve several scenes (scenarios). You can cast an actor to ground the visual appearance.
 4.  **Configure Generation**: Select a genre, decade, and image generation parameters.
