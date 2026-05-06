@@ -81,8 +81,15 @@ state: dict[str, Any] = {
 # Background indexing thread
 # ---------------------------------------------------------------------------
 
-def load_book_task(book_path: str, book_name: str) -> None:
-    """Runs in a daemon thread; writes progress into `state`."""
+def load_book_task(book_path: str, book_name: str, character_source: str = "auto") -> None:
+    """
+    Runs in a daemon thread; writes progress into `state`.
+
+    character_source controls how the character list is obtained:
+      "wiki"        — Wikipedia only (original behaviour)
+      "txt_extract" — LLM + text sampling from the local file
+      "auto"        — try Wiki first, fall back to txt_extract if empty (default)
+    """
     try:
         state["job_status"] = "running"
         state["characters"] = []
@@ -90,13 +97,23 @@ def load_book_task(book_path: str, book_name: str) -> None:
         state["book_title"] = book_name
         state["error"] = None
 
-        # Step 1 — Wikipedia characters
-        state["stage"] = "wikipedia"
+        # Step 1 — Character list
+        source_label = {
+            "wiki": "Wikipedia",
+            "txt_extract": "local file (LLM sampling)",
+            "auto": "auto (Wiki → fallback to local file)",
+        }.get(character_source, character_source)
+
+        state["stage"] = "characters"
         state["progress"] = 0
         state["total"] = 1
-        state["message"] = f"Fetching major characters from Wikipedia for '{book_name}'…"
+        state["message"] = f"Fetching character list via {source_label}…"
 
-        characters = get_major_character_names(book_name)
+        characters = get_major_character_names(
+            book_title=book_name,
+            txt_filepath=book_path,
+            source=character_source,
+        )
         state["characters"] = characters
         state["progress"] = 1
         state["message"] = f"Found {len(characters)} characters. Building vector index…"
@@ -130,6 +147,11 @@ def load_book_task(book_path: str, book_name: str) -> None:
 class LoadBookRequest(BaseModel):
     book_path: str
     book_name: str
+    # Controls where the character list comes from.
+    # "wiki"        — Wikipedia only
+    # "txt_extract" — LLM + local text sampling
+    # "auto"        — try Wiki; fall back to txt_extract if empty (default)
+    character_source: str = "auto"
 
 
 class CharacterDetailsRequest(BaseModel):
@@ -191,7 +213,7 @@ async def load_book(req: LoadBookRequest):
 
     t = threading.Thread(
         target=load_book_task,
-        args=(req.book_path, req.book_name),
+        args=(req.book_path, req.book_name, req.character_source),
         daemon=True,
     )
     t.start()
@@ -212,7 +234,11 @@ def _epub_to_txt(epub_path: str, out_path: str) -> None:
 
 
 @app.post("/api/upload-book")
-async def upload_book(file: UploadFile = File(...), book_name: str = Form(...)):
+async def upload_book(
+    file: UploadFile = File(...),
+    book_name: str = Form(...),
+    character_source: str = Form("auto"),
+):
     if state["job_status"] == "running":
         raise HTTPException(status_code=409, detail="A book is already being loaded.")
 
@@ -231,7 +257,11 @@ async def upload_book(file: UploadFile = File(...), book_name: str = Form(...)):
         os.unlink(tmp_path)
         tmp_path = txt_path
 
-    t = threading.Thread(target=load_book_task, args=(tmp_path, book_name), daemon=True)
+    t = threading.Thread(
+        target=load_book_task,
+        args=(tmp_path, book_name, character_source),
+        daemon=True,
+    )
     t.start()
     return {"status": "started"}
 
