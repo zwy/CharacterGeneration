@@ -9,6 +9,7 @@ Refactored from CharacterImageGeneration.py with:
 """
 
 import os
+import re
 import json
 import urllib.request
 import urllib.parse
@@ -41,6 +42,26 @@ CHARACTER_SOURCE = os.getenv("CHARACTER_SOURCE", "auto")
 
 def get_llm_client() -> OpenAI:
     return OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY)
+
+
+def _split_names(text: str) -> list[str]:
+    """
+    Split a comma-separated name list returned by the LLM.
+    Handles both English commas (,) and Chinese fullwidth commas (，).
+    Also strips leading numbers/dots like "1. " that some models emit.
+    """
+    # Normalise Chinese comma to ASCII comma first
+    text = text.replace("，", ",")
+    # Split on comma; also tolerate newlines between names
+    parts = re.split(r"[,\n]+", text)
+    names = []
+    for p in parts:
+        # Strip leading ordinal markers: "1.", "1)", "•", "-", etc.
+        p = re.sub(r"^\s*[\d\u4e00\u4e8c\u4e09\uff0e.\-)\u2022\u00b7]+\s*", "", p)
+        p = p.strip()
+        if p:
+            names.append(p)
+    return names
 
 
 # ---------------------------------------------------------------------------
@@ -89,9 +110,7 @@ def get_major_character_names_from_wiki(book_title: str) -> list[str]:
             model=LLM_MODEL,
             messages=[{"role": "user", "content": prompt}]
         )
-        text_response = response.choices[0].message.content
-        major_characters = [n.strip() for n in text_response.split(",") if n.strip()]
-        return major_characters
+        return _split_names(response.choices[0].message.content)
 
     except Exception as e:
         print(f"[Wikipedia] Error: {e}")
@@ -159,8 +178,7 @@ def get_major_character_names_from_txt(txt_filepath: str, book_title: str = "") 
             model=LLM_MODEL,
             messages=[{"role": "user", "content": prompt}]
         )
-        text_response = response.choices[0].message.content
-        characters = [n.strip() for n in text_response.split(",") if n.strip()]
+        characters = _split_names(response.choices[0].message.content)
         print(f"[TXT Extract] Found {len(characters)} characters: {characters}")
         return characters
 
