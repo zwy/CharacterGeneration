@@ -28,7 +28,7 @@ CHARACTER_SOURCE = os.getenv("CHARACTER_SOURCE", "auto")
 
 
 def get_llm_client() -> OpenAI:
-    return OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY)
+    return OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY, timeout=120)
 
 
 def _split_names(text: str) -> list[str]:
