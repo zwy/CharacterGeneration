@@ -209,9 +209,10 @@ def _extract_names_hanlp(text: str) -> list[str]:
                 if model_id is None:
                     print(f"[HanLP NER] {model_attr} not in hanlp.pretrained.mtl, skipping.")
                     continue
-                pipeline = hanlp.load(model_id)
+                # Only enable tok+ner tasks to skip SRL/DEP/SDP/CON, ~3-5x faster
+                pipeline = hanlp.load(model_id, tasks=["tok", "ner*"])
                 loaded_model_name = model_attr
-                print(f"[HanLP NER] Loaded MTL model: {model_attr}")
+                print(f"[HanLP NER] Loaded MTL model: {model_attr} (tok+ner only)")
                 break
             except Exception as e:
                 print(f"[HanLP NER] Skipping {model_attr}: {e}")
