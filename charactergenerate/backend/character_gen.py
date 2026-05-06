@@ -8,9 +8,9 @@ import re
 import json
 import urllib.request
 import urllib.parse
+from typing import Any
 
 from dotenv import load_dotenv
-from openai import OpenAI
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
@@ -19,17 +19,145 @@ from langchain_huggingface import HuggingFaceEmbeddings
 load_dotenv()
 
 OLLAMA_MODEL = "Gemma4E4B"
-OLLAMA_HOST = "http://localhost:11434"
+OLLAMA_HOST  = "http://localhost:11434"
 
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://localhost:11434/v1")
-LLM_API_KEY  = os.getenv("LLM_API_KEY",  "ollama")
-LLM_MODEL    = os.getenv("LLM_MODEL",    "Gemma4E4B:latest")
+# ---------------------------------------------------------------------------
+# LLM 配置 — 通过 .env 控制
+#
+#   LLM_PROVIDER = perplexity | openai | ollama   (默认 perplexity)
+#
+#   perplexity:
+#     PERPLEXITY_API_KEY = pplx-xxx
+#     LLM_MODEL          = google/gemini-3-flash-preview   (默认)
+#
+#   openai:
+#     OPENAI_API_KEY = sk-xxx
+#     LLM_MODEL      = gpt-4o-mini
+#
+#   ollama:
+#     LLM_BASE_URL = http://localhost:11434/v1   (默认)
+#     LLM_MODEL    = Gemma4E4B:latest
+# ---------------------------------------------------------------------------
+LLM_PROVIDER  = os.getenv("LLM_PROVIDER",  "perplexity")
+LLM_MODEL     = os.getenv("LLM_MODEL",     "google/gemini-3-flash-preview")
+LLM_BASE_URL  = os.getenv("LLM_BASE_URL",  "http://localhost:11434/v1")
+LLM_API_KEY   = os.getenv("LLM_API_KEY",   "")
 CHARACTER_SOURCE = os.getenv("CHARACTER_SOURCE", "auto")
 
 
-def get_llm_client() -> OpenAI:
-    return OpenAI(base_url=LLM_BASE_URL, api_key=LLM_API_KEY, timeout=120)
+# ---------------------------------------------------------------------------
+# 统一 LLM 客户端（参考 novel-illustrator/llm_client.py）
+# ---------------------------------------------------------------------------
 
+class LLMClient:
+    """
+    统一 LLM 调用接口，支持 perplexity / openai / ollama。
+
+    用法:
+        llm = LLMClient.from_env()
+        text = llm.chat([{"role": "user", "content": "Hello"}])
+    """
+
+    def __init__(self, provider: str, **kwargs: Any):
+        self.provider = provider
+        self._kwargs  = kwargs
+        self._client  = self._build_client(provider, **kwargs)
+
+    @classmethod
+    def from_env(cls) -> "LLMClient":
+        provider = LLM_PROVIDER.lower()
+
+        if provider == "perplexity":
+            api_key = (
+                os.environ.get("PERPLEXITY_API_KEY")
+                or LLM_API_KEY
+            )
+            model = LLM_MODEL or "google/gemini-3-flash-preview"
+            return cls(provider="perplexity", api_key=api_key, model=model)
+
+        elif provider == "openai":
+            api_key = (
+                os.environ.get("OPENAI_API_KEY")
+                or LLM_API_KEY
+            )
+            model = LLM_MODEL or "gpt-4o-mini"
+            return cls(provider="openai", api_key=api_key, model=model)
+
+        elif provider == "ollama":
+            base_url = LLM_BASE_URL or "http://localhost:11434/v1"
+            model    = LLM_MODEL    or "Gemma4E4B:latest"
+            return cls(provider="ollama", base_url=base_url, model=model)
+
+        else:
+            raise ValueError(f"不支持的 LLM_PROVIDER: {provider}，可选: perplexity / openai / ollama")
+
+    def chat(self, messages: list[dict]) -> str:
+        """
+        发送消息列表，返回模型回复文本。
+        messages 格式: [{"role": "system"|"user"|"assistant", "content": str}]
+        """
+        if self.provider == "perplexity":
+            return self._chat_perplexity(messages)
+        else:
+            return self._chat_openai_compat(messages)
+
+    # ------------------------------------------------------------------
+
+    def _build_client(self, provider: str, **kwargs):
+        if provider == "perplexity":
+            from perplexity import Perplexity
+            api_key = kwargs.get("api_key", "")
+            return Perplexity(api_key=api_key) if api_key else Perplexity()
+        else:
+            from openai import OpenAI
+            init_kwargs: dict[str, Any] = {}
+            if kwargs.get("api_key"):
+                init_kwargs["api_key"] = kwargs["api_key"]
+            if kwargs.get("base_url"):
+                init_kwargs["base_url"] = kwargs["base_url"]
+            return OpenAI(**init_kwargs)
+
+    def _chat_perplexity(self, messages: list[dict]) -> str:
+        """使用 Perplexity Agent API（responses.create 接口）
+
+        perplexity-sdk 的 ResponsesResource.create() 不支持 system 参数，
+        将 system prompt 以 [Instructions] 块的形式拼接到 input 开头。
+        """
+        model = self._kwargs.get("model", "google/gemini-3-flash-preview")
+
+        system_parts = [m["content"] for m in messages if m["role"] == "system"]
+        user_parts   = [m["content"] for m in messages if m["role"] != "system"]
+
+        parts: list[str] = []
+        if system_parts:
+            parts.append("[Instructions]\n" + "\n\n".join(system_parts))
+        parts.append("[Task]\n" + "\n\n".join(user_parts))
+        input_text = "\n\n".join(parts)
+
+        response = self._client.responses.create(
+            model=model,
+            input=input_text,
+        )
+        return response.output_text
+
+    def _chat_openai_compat(self, messages: list[dict]) -> str:
+        """OpenAI / Ollama 标准 chat completions 接口"""
+        model = self._kwargs.get("model", "gpt-4o-mini")
+        response = self._client.chat.completions.create(
+            model=model,
+            messages=messages,
+        )
+        return response.choices[0].message.content
+
+
+def _get_llm() -> LLMClient:
+    """全局单例（每次调用都新建，轻量无状态）"""
+    return LLMClient.from_env()
+
+
+# ---------------------------------------------------------------------------
+# 辅助
+# ---------------------------------------------------------------------------
 
 def _split_names(text: str) -> list[str]:
     text = text.replace("，", ",")
@@ -77,18 +205,15 @@ def get_major_character_names_from_wiki(book_title: str) -> list[str]:
         if not content:
             return []
 
-        client = get_llm_client()
+        llm = _get_llm()
         prompt = (
             f"Extract a comma-separated list of major character names from the following "
             f"Wikipedia article about the book '{book_title}'. "
             f"Return ONLY the comma-separated list of names, no other text.\n\n"
             f"Article text:\n{content[:15000]}"
         )
-        response = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return _split_names(response.choices[0].message.content or "")
+        raw = llm.chat([{"role": "user", "content": prompt}])
+        return _split_names(raw or "")
 
     except Exception as e:
         print(f"[Wikipedia] Error: {e}")
@@ -135,18 +260,15 @@ def get_major_character_names_from_txt(txt_filepath: str, book_title: str = "") 
             return []
 
         title_hint = f" (titled '{book_title}')" if book_title else ""
-        client = get_llm_client()
+        llm = _get_llm()
         prompt = (
             f"The following are excerpts from a novel{title_hint}.\n"
             f"Identify all MAJOR characters (protagonists and important recurring figures).\n"
             f"Return ONLY a comma-separated list of their names \u2014 no explanations, no numbering.\n\n"
             f"Novel excerpts:\n{sample}"
         )
-        response = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        characters = _split_names(response.choices[0].message.content or "")
+        raw = llm.chat([{"role": "user", "content": prompt}])
+        characters = _split_names(raw or "")
         print(f"[TXT Extract] Found {len(characters)} characters: {characters}")
         return characters
 
@@ -183,8 +305,8 @@ def _extract_names_hanlp(text: str) -> list[str]:
       a list of sentences, each sentence is a list of (entity, label) tuples.
       Example:
         {
-          'tok/fine': [['\u5218\u5c0f\u9759', '\u63a8', '\u5f00', ...], ...],
-          'ner/msra': [[('\u5218\u5c0f\u9759', 'PERSON')], []],
+          'tok/fine': [['刘小静', '推', '开', ...], ...],
+          'ner/msra': [[('刘小静', 'PERSON')], []],
         }
 
     Fallback chain: MTL-ELECTRA-SMALL -> MTL-ELECTRA-BASE -> jieba posseg
@@ -192,8 +314,6 @@ def _extract_names_hanlp(text: str) -> list[str]:
     try:
         import hanlp  # type: ignore
 
-        # MTL models that work with raw string input (no pre-tokenization needed)
-        # They include a tokenizer task, so they handle Chinese text correctly.
         _MTL_CANDIDATES = [
             "CLOSE_TOK_POS_NER_SRL_DEP_SDP_CON_ELECTRA_SMALL_ZH",
             "CLOSE_TOK_POS_NER_SRL_DEP_SDP_CON_ELECTRA_BASE_ZH",
@@ -209,7 +329,6 @@ def _extract_names_hanlp(text: str) -> list[str]:
                 if model_id is None:
                     print(f"[HanLP NER] {model_attr} not in hanlp.pretrained.mtl, skipping.")
                     continue
-                # Only enable tok+ner tasks to skip SRL/DEP/SDP/CON, ~3-5x faster
                 pipeline = hanlp.load(model_id, tasks=["tok", "ner*"])
                 loaded_model_name = model_attr
                 print(f"[HanLP NER] Loaded MTL model: {model_attr} (tok+ner only)")
@@ -220,8 +339,6 @@ def _extract_names_hanlp(text: str) -> list[str]:
         if pipeline is None:
             raise RuntimeError("All HanLP MTL models failed to load.")
 
-        # Find the NER output key (e.g. 'ner/msra', 'ner/ontonotes', 'ner/pku')
-        # We probe with a tiny sample first.
         _probe = pipeline("张伟走入北京大学的大门。")
         ner_key = next(
             (k for k in _probe if k.startswith("ner")),
@@ -233,7 +350,6 @@ def _extract_names_hanlp(text: str) -> list[str]:
             )
         print(f"[HanLP NER] Using output key: '{ner_key}'")
 
-        # Process text in chunks of ~3000 chars to avoid OOM
         CHUNK = 3000
         freq: dict[str, int] = {}
         total_chunks = (len(text) + CHUNK - 1) // CHUNK
@@ -243,16 +359,10 @@ def _extract_names_hanlp(text: str) -> list[str]:
             try:
                 result = pipeline(chunk)
                 raw_entities = result.get(ner_key, [])
-                # HanLP MTL 有两种输出格式：
-                # 扁平格式（单字符串输入）: [(entity, label, start, end), ...]
-                # 嵌套格式（列表输入）:     [[(entity, label), ...], [...], ...]
-                # 通过检查第一个元素的首项来区分
                 if raw_entities and isinstance(raw_entities[0], (tuple, list)):
                     if isinstance(raw_entities[0][0], str):
-                        # 扁平格式：每个元素是 (entity, label, start, end)
                         entity_list = raw_entities
                     else:
-                        # 嵌套格式：展平句子列表
                         entity_list = [item for sent in raw_entities for item in sent]
                     for item in entity_list:
                         if isinstance(item, (tuple, list)) and len(item) >= 2:
@@ -323,16 +433,13 @@ def get_major_character_names_from_txt_hanlp(
         )
 
         print(f"[HanLP Strategy] Prompt:\n{prompt}\n", flush=True)
-        client = get_llm_client()
+        llm = _get_llm()
         print(f"[HanLP Strategy] Calling LLM ({LLM_MODEL}) for name refinement, please wait...", flush=True)
         import time as _time
         _t0 = _time.time()
-        response = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[{"role": "user", "content": prompt}]
-        )
+        raw = llm.chat([{"role": "user", "content": prompt}])
         print(f"[HanLP Strategy] LLM responded in {_time.time() - _t0:.1f}s.", flush=True)
-        raw = (response.choices[0].message.content or "").strip()
+        raw = (raw or "").strip()
         print(f"[HanLP Strategy] Raw LLM output: {raw[:300]}", flush=True)
         raw = raw.replace("、", ",")
         characters = _split_names(raw)
@@ -444,7 +551,7 @@ def get_character_situations(vectorstore, character_name: str, k: int = 6) -> li
 
 def get_scenario_summaries(vectorstore, character_name: str) -> list[dict]:
     situations = get_character_situations(vectorstore, character_name, k=6)
-    client = get_llm_client()
+    llm = _get_llm()
     summaries = []
     for ctx in situations:
         prompt = (
@@ -452,11 +559,7 @@ def get_scenario_summaries(vectorstore, character_name: str) -> list[dict]:
             f"involving {character_name}. Return ONLY the sentence, nothing else.\n\n"
             f"Scene:\n{ctx[:2000]}"
         )
-        resp = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        label = resp.choices[0].message.content.strip().strip('"').strip("'")
+        label = llm.chat([{"role": "user", "content": prompt}]).strip().strip('"').strip("'")
         summaries.append({"label": label, "context": ctx})
     return summaries
 
@@ -466,7 +569,7 @@ def get_scenario_summaries(vectorstore, character_name: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def analyze_character(book_text: str, character_name: str) -> str:
-    client = get_llm_client()
+    llm = _get_llm()
     prompt = f"""Analyze the character '{character_name}' from the book. Extract and describe:
 - Physical appearance (hair colour, eye colour, height, build, approximate age)
 - Clothing and accessories typically worn
@@ -475,11 +578,7 @@ def analyze_character(book_text: str, character_name: str) -> str:
 
 Book excerpt:
 {book_text[:5000]}"""
-    response = client.chat.completions.create(
-        model=LLM_MODEL,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content
+    return llm.chat([{"role": "user", "content": prompt}])
 
 
 # ---------------------------------------------------------------------------
@@ -493,7 +592,7 @@ def cast_character_with_actor(
     genre: str = "",
     decade: str = "2026"
 ) -> str:
-    client = get_llm_client()
+    llm = _get_llm()
     genre_context = f"This is for a {genre} adaptation." if genre else ""
     decade_context = f"The production is set in/filmed during the {decade}s." if decade and decade != "2026" else "The production is modern (2026)."
 
@@ -507,11 +606,7 @@ Cast an age-appropriate real-world actor from the {industry} industry to play th
 If the decade is in the past, pick an actor who was active and the correct age DURING that decade.
 If the decade is modern, pick a currently active actor.
 Return ONLY the name of the actor, nothing else."""
-    response = client.chat.completions.create(
-        model=LLM_MODEL,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.choices[0].message.content.strip()
+    return llm.chat([{"role": "user", "content": prompt}]).strip()
 
 
 # ---------------------------------------------------------------------------
@@ -529,12 +624,12 @@ def generate_prompt_for_scenario(
     race: str = "",
     age: str = "",
 ) -> str:
-    client = get_llm_client()
+    llm = _get_llm()
 
     overrides = []
     if gender: overrides.append(f"Gender: {gender}")
-    if race: overrides.append(f"Race/Ethnicity: {race}")
-    if age: overrides.append(f"Age: {age}")
+    if race:   overrides.append(f"Race/Ethnicity: {race}")
+    if age:    overrides.append(f"Age: {age}")
     override_text = "\n".join(overrides)
 
     genre_context = f" (Adapted specifically for the {genre} genre)" if genre else ""
@@ -544,18 +639,14 @@ def generate_prompt_for_scenario(
         f"IMPORTANT: The clothing and hair must reflect the {genre} genre, but the facial features, age, and ethnicity must remain consistent with a realistic human portrayal of the character.\n\n"
         f"Scene: {scenario_context}"
     )
-    scene_resp = client.chat.completions.create(
-        model=LLM_MODEL,
-        messages=[{"role": "user", "content": extract_prompt}]
-    )
-    scene_details = scene_resp.choices[0].message.content
+    scene_details = llm.chat([{"role": "user", "content": extract_prompt}])
 
     actor_instruction = (
         f"The character's face should closely resemble the actor: {actor_name}."
         if actor_name else ""
     )
 
-    genre_instruction = f"Genre: {genre}" if genre else ""
+    genre_instruction  = f"Genre: {genre}" if genre else ""
     decade_instruction = f"Visual Style: {decade}s cinematography and fashion" if decade and decade != "2026" else "Visual Style: Modern cinematic hyper-realistic"
 
     prompt_template = f"""Create a highly detailed image prompt for Z-Image-Turbo.
@@ -582,8 +673,4 @@ Rules:
 
 Return ONLY the image prompt text, nothing else."""
 
-    response = client.chat.completions.create(
-        model=LLM_MODEL,
-        messages=[{"role": "user", "content": prompt_template}]
-    )
-    return response.choices[0].message.content
+    return llm.chat([{"role": "user", "content": prompt_template}])
