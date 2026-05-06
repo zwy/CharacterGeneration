@@ -1,1 +1,451 @@
-IiIiCm1haW4ucHkgXHUyMDE0IEZhc3RBUEkgYmFja2VuZCBmb3IgdGhlIENoYXJhY3RlciBHZW5lcmF0aW9uIGFwcC4KCkVuZHBvaW50czoKICBQT1NUIC9hcGkvbG9hZC1ib29rICAgICAgICAgICAgICAgICBzdGFydCBiYWNrZ3JvdW5kIGluZGV4aW5nIGpvYgogIEdFVCAgL2FwaS9zdGF0dXMgICAgICAgICAgICAgICAgICAgIFNTRSBzdHJlYW0gb2Ygam9iIHByb2dyZXNzCiAgR0VUICAvYXBpL2NoYXJhY3RlcnMgICAgICAgICAgICAgICAgcmV0dXJuIGNhY2hlZCBjaGFyYWN0ZXIgbGlzdAogIFBPU1QgL2FwaS9jaGFyYWN0ZXItZGV0YWlscyAgICAgICAgIGFuYWx5emUgY2hhcmFjdGVyICsgZ2V0IFJBRyBzY2VuYXJpb3MKICBQT1NUIC9hcGkvY2FzdC1hY3RvciAgICAgICAgICAgICAgICBjYXN0IGFuIGFjdG9yIGZvciB0aGUgY2hhcmFjdGVyCiAgUE9TVCAvYXBpL2dlbmVyYXRlLXByb21wdCAgICAgICAgICAgYnVpbGQgdGhlIGZpbmFsIFotSW1hZ2UtVHVyYm8gcHJvbXB0CiAgUE9TVCAvYXBpL2NvbWZ5dWkvdGVzdCAgICAgICAgICAgICAgdmVyaWZ5IENvbWZ5VUkgaXMgcmVhY2hhYmxlCiAgUE9TVCAvYXBpL2NvbWZ5dWkvZ2VuZXJhdGUgICAgICAgICAgcXVldWUgKyBzdHJlYW0gU1NFIHByb2dyZXNzIGZvciBpbWFnZSBnZW4KICBHRVQgIC9hcGkvY29tZnl1aS9pbWFnZS97cHJvbXB0X2lkfSBwcm94eS1mZXRjaCB0aGUgZmluaXNoZWQgaW1hZ2UKIiIiCmltcG9ydCBvcwppbXBvcnQgcmUKaW1wb3J0IGFzeW5jaW8KaW1wb3J0IHRocmVhZGluZwppbXBvcnQganNvbgppbXBvcnQgdGVtcGZpbGUKZnJvbSB0eXBpbmcgaW1wb3J0IEFueSwgT3B0aW9uYWwKaW1wb3J0IHVybGxpYi5yZXF1ZXN0CmltcG9ydCB1cmxsaWIucGFyc2UKaW1wb3J0IHVybGxpYi5lcnJvcgoKaW1wb3J0IGVib29rbGliCmZyb20gZWJvb2tsaWIgaW1wb3J0IGVwdWIKZnJvbSBmYXN0YXBpIGltcG9ydCBGYXN0QVBJLCBIVFRQRXhjZXB0aW9uLCBVcGxvYWRGaWxlLCBGaWxlLCBGb3JtCmZyb20gZmFzdGFwaS5taWRkbGV3YXJlLmNvcnMgaW1wb3J0IENPUlNNaWRkbGV3YXJlCmZyb20gZmFzdGFwaS5yZXNwb25zZXMgaW1wb3J0IFN0cmVhbWluZ1Jlc3BvbnNlLCBSZXNwb25zZQpmcm9tIHB5ZGFudGljIGltcG9ydCBCYXNlTW9kZWwKCmZyb20gY2hhcmFjdGVyX2dlbiBpbXBvcnQgKAogICAgZ2V0X21ham9yX2NoYXJhY3Rlcl9uYW1lcywKICAgIGJ1aWxkX2Jvb2tfaW5kZXgsCiAgICBnZXRfc2NlbmFyaW9fc3VtbWFyaWVzLAogICAgYW5hbHl6ZV9jaGFyYWN0ZXIsCiAgICBnZXRfY2hhcmFjdGVyX3NpdHVhdGlvbnMsCiAgICBjYXN0X2NoYXJhY3Rlcl93aXRoX2FjdG9yLAogICAgZ2VuZXJhdGVfcHJvbXB0X2Zvcl9zY2VuYXJpbywKKQpmcm9tIGNvbWZ5dWkgaW1wb3J0ICgKICAgIGluamVjdF9wcm9tcHRfaW50b193b3JrZmxvdywKICAgIHF1ZXVlX3Byb21wdCwKICAgIHBvbGxfdW50aWxfZG9uZSwKICAgIGdldF9vdXRwdXRfaW1hZ2VfYnl0ZXMsCiAgICB0ZXN0X2Nvbm5lY3Rpb24sCikKCiMgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiMgQXBwIHNldHVwCiMgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCgphcHAgPSBGYXN0QVBJKHRpdGxlPSJDaGFyYWN0ZXIgR2VuZXJhdGlvbiBBUEkiKQoKYXBwLmFkZF9taWRkbGV3YXJlKAogICAgQ09SU01pZGRsZXdhcmUsCiAgICBhbGxvd19vcmlnaW5zPVsiKiJdLAogICAgYWxsb3dfbWV0aG9kcz1bIioiXSwKICAgIGFsbG93X2hlYWRlcnM9WyIqIl0sCikKCiMgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCiMgU2hhcmVkIGluLW1lbW9yeSBzdGF0ZSAoc2luZ2xlLXVzZXIgZGV2IGFwcCBcdTIwMTQgbm8gYXV0aCBuZWVkZWQpCiMgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCgpzdGF0ZTogZGljdFtzdHIsIEFueV0gPSB7CiAgICAiam9iX3N0YXR1cyI6ICJpZGxlIiwgICAjIGlkbGUgfCBydW5uaW5nIHwgZG9uZSB8IGVycm9yCiAgICAic3RhZ2UiOiAiIiwKICAgICJwcm9ncmVzcyI6IDAsCiAgICAidG90YWwiOiAwLAogICAgIm1lc3NhZ2UiOiAiIiwKICAgICJjaGFyYWN0ZXJzIjogW10sCiAgICAidmVjdG9yc3RvcmUiOiBOb25lLAogICAgImJvb2tfdGl0bGUiOiAiIiwKICAgICJlcnJvciI6IE5vbmUsCn0KCgojIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQojIEJhY2tncm91bmQgaW5kZXhpbmcgdGhyZWFkCiMgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCgpkZWYgbG9hZF9ib29rX3Rhc2soYm9va19wYXRoOiBzdHIsIGJvb2tfbmFtZTogc3RyLCBjaGFyYWN0ZXJfc291cmNlOiBzdHIgPSAiYXV0byIpIC0+IE5vbmU6CiAgICAiIiIKICAgIFJ1bnMgaW4gYSBkYWVtb24gdGhyZWFkOyB3cml0ZXMgcHJvZ3Jlc3MgaW50byBgc3RhdGVgLgoKICAgIGNoYXJhY3Rlcl9zb3VyY2UgY29udHJvbHMgaG93IHRoZSBjaGFyYWN0ZXIgbGlzdCBpcyBvYnRhaW5lZDoKICAgICAgIndpa2kiICAgICAgICBcdTIwMTQgV2lraXBlZGlhIG9ubHkgKG9yaWdpbmFsIGJlaGF2aW91cikKICAgICAgInR4dF9leHRyYWN0IiBcdTIwMTQgTExNICsgdGV4dCBzYW1wbGluZyBmcm9tIHRoZSBsb2NhbCBmaWxlCiAgICAgICJoYW5scCIgICAgICAgXHUyMDE0IEhhbkxQIE1UTCBwaXBlbGluZSBORVIgKG5vIExMTSBuZWVkZWQpCiAgICAgICJhdXRvIiAgICAgICAgXHUyMDE0IFdpa2kgXHUyMTkyIEhhbkxQIE5FUiBcdTIxOTIgdHh0X2V4dHJhY3QgZmFsbGJhY2sgY2hhaW4gKGRlZmF1bHQpCiAgICAiIiIKICAgIHRyeToKICAgICAgICBzdGF0ZVsiam9iX3N0YXR1cyJdID0gInJ1bm5pbmciCiAgICAgICAgc3RhdGVbImNoYXJhY3RlcnMiXSA9IFtdCiAgICAgICAgc3RhdGVbInZlY3RvcnN0b3JlIl0gPSBOb25lCiAgICAgICAgc3RhdGVbImJvb2tfdGl0bGUiXSA9IGJvb2tfbmFtZQogICAgICAgIHN0YXRlWyJlcnJvciJdID0gTm9uZQoKICAgICAgICAjIFN0ZXAgMSBcdTIwMTQgQ2hhcmFjdGVyIGxpc3QKICAgICAgICBzb3VyY2VfbGFiZWwgPSB7CiAgICAgICAgICAgICJ3aWtpIjogICAgICAgICJXaWtpcGVkaWEiLAogICAgICAgICAgICAidHh0X2V4dHJhY3QiOiAibG9jYWwgZmlsZSAoTExNIHNhbXBsaW5nKSIsCiAgICAgICAgICAgICJoYW5scCI6ICAgICAgICJIYW5MUCBORVIKKE1UTCBwaXBlbGluZSkiLAogICAgICAgICAgICAiYXV0byI6ICAgICAgICAiYXV0byAoV2lraSBcdTIxOTIgSGFuTFAgTkVSIFx1MjE5MiBsb2NhbCBmaWxlKSIsCiAgICAgICAgfS5nZXQoY2hhcmFjdGVyX3NvdXJjZSwgY2hhcmFjdGVyX3NvdXJjZSkKCiAgICAgICAgc3RhdGVbInN0YWdlIl0gPSAiY2hhcmFjdGVycyIKICAgICAgICBzdGF0ZVsicHJvZ3Jlc3MiXSA9IDAKICAgICAgICBzdGF0ZVsidG90YWwiXSA9IDEKICAgICAgICBzdGF0ZVsibWVzc2FnZSJdID0gZiJGZXRjaGluZyBjaGFyYWN0ZXIgbGlzdCB2aWEge3NvdXJjZV9sYWJlbH1cdTIwMjYiCgogICAgICAgIGNoYXJhY3RlcnMgPSBnZXRfbWFqb3JfY2hhcmFjdGVyX25hbWVzKAogICAgICAgICAgICBib29rX3RpdGxlPWJvb2tfbmFtZSwKICAgICAgICAgICAgdHh0X2ZpbGVwYXRoPWJvb2tfcGF0aCwKICAgICAgICAgICAgc291cmNlPWNoYXJhY3Rlcl9zb3VyY2UsCiAgICAgICAgKQogICAgICAgIHN0YXRlWyJjaGFyYWN0ZXJzIl0gPSBjaGFyYWN0ZXJzCiAgICAgICAgc3RhdGVbInByb2dyZXNzIl0gPSAxCiAgICAgICAgc3RhdGVbIm1lc3NhZ2UiXSA9IGYiRm91bmQge2xlbihjaGFyYWN0ZXJzKX0gY2hhcmFjdGVycy4gQnVpbGRpbmcgdmVjdG9yIGluZGV4XHUyMDI2IgoKICAgICAgICAjIFN0ZXAgMiBcdTIwMTQgVmVjdG9yIGluZGV4IHdpdGggbGl2ZSBwcm9ncmVzcwogICAgICAgIGRlZiBwcm9nX2NiKHN0YWdlOiBzdHIsIG46IGludCwgdG90YWw6IGludCwgbXNnOiBzdHIpIC0+IE5vbmU6CiAgICAgICAgICAgIHN0YXRlWyJzdGFnZSJdID0gc3RhZ2UKICAgICAgICAgICAgc3RhdGVbInByb2dyZXNzIl0gPSBuCiAgICAgICAgICAgIHN0YXRlWyJ0b3RhbCJdID0gdG90YWwKICAgICAgICAgICAgc3RhdGVbIm1lc3NhZ2UiXSA9IG1zZwoKICAgICAgICB2ZWN0b3JzdG9yZSA9IGJ1aWxkX2Jvb2tfaW5kZXgoYm9va19wYXRoLCBwcm9ncmVzc19jYj1wcm9nX2NiKQogICAgICAgIHN0YXRlWyJ2ZWN0b3JzdG9yZSJdID0gdmVjdG9yc3RvcmUKICAgICAgICBzdGF0ZVsiam9iX3N0YXR1cyJdID0gImRvbmUiCiAgICAgICAgc3RhdGVbIm1lc3NhZ2UiXSA9ICgKICAgICAgICAgICAgZiJSZWFkeSEgSW5kZXhlZCB0aGUgYm9vayBhbmQgZm91bmQge2xlbihjaGFyYWN0ZXJzKX0gY2hhcmFjdGVycy4iCiAgICAgICAgKQoKICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZXhjOgogICAgICAgIGltcG9ydCB0cmFjZWJhY2sKICAgICAgICB0cmFjZWJhY2sucHJpbnRfZXhjKCkKICAgICAgICBzdGF0ZVsiam9iX3N0YXR1cyJdID0gImVycm9yIgogICAgICAgIHN0YXRlWyJlcnJvciJdID0gc3RyKGV4YykKICAgICAgICBzdGF0ZVsibWVzc2FnZSJdID0gZiJFcnJvcjoge2V4Y30iCgoKIyAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0KIyBSZXF1ZXN0IC8gcmVzcG9uc2UgbW9kZWxzCiMgLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tCgpjbGFzcyBMb2FkQm9va1JlcXVlc3QoQmFzZU1vZGVsKToKICAgIGJvb2tfcGF0aDogc3RyCiAgICBib29rX25hbWU6IHN0cgogICAgIyBDb250cm9scyB3aGVyZSB0aGUgY2hhcmFjdGVyIGxpc3QgY29tZXMgZnJvbS4KICAgICMgIndpa2kiICAgICAgICBcdTIwMTQgV2lraXBlZGlhIG9ubHkKICAgICMgInR4dF9leHRyYWN0IiBcdTIwMTQgTExNICsgbG9jYWwgdGV4dCBzYW1wbGluZwogICAgIyAiaGFubHAiICAgICAgIFx1MjAxNCBIYW5MUCBORVIKTU1UTCBwaXBlbGluZSAobm8gTExNIG5lZWRlZCkKICAgICMgImF1dG8iICAgICAgICBcdTIwMTQgV2lraSBcdTIxOTIgSGFuTFAgTkVSIFx1MjE5MiB0eHRfZXh0cmFjdCBmYWxsYmFjayBjaGFpbiAoZGVmYXVsdCkKICAgIGNoYXJhY3Rlcl9zb3VyY2U6IHN0ciA9ICJhdXRvIgoKCmNsYXNzIENoYXJhY3RlckRldGFpbHNSZXF1ZXN0KEJhc2VNb2RlbCk6CiAgICBjaGFyYWN0ZXJfbmFtZTogc3RyCgoKY2xhc3MgQ2FzdEFjdG9yUmVxdWVzdChCYXNlTW9kZWwpOgogICAgY2hhcmFjdGVyX25hbWU6IHN0cgogICAgZGVzY3JpcHRpb246IHN0cgogICAgaW5kdXN0cnk6IHN0ciA9ICJob2xseXdvb2QiCiAgICBnZW5yZTogc3RyID0gIiIKICAgIGRlY2FkZTogc3RyID0gIjIwMjYiCgoKY2xhc3MgR2VuZXJhdGVQcm9tcHRSZXF1ZXN0KEJhc2VNb2RlbCk6CiAgICBjaGFyYWN0ZXJfbmFtZTogc3RyCiAgICBkZXNjcmlwdGlvbjogc3RyCiAgICBzY2VuYXJpb19jb250ZXh0OiBzdHIKICAgIGFjdG9yX25hbWU6IHN0ciA9ICIiCiAgICBnZW5yZTogc3RyID0gIiIKICAgIGRlY2FkZTogc3RyID0gIjIwMjYiCiAgICBnZW5kZXI6IHN0ciA9ICIiCiAgICByYWNlOiBzdHIgPSAiIgogICAgYWdlOiBzdHIgPSAiIgoKCmNsYXNzIENvbWZ5VUlUZXN0UmVxdWVzdChCYXNlTW9kZWwpOgogICAgY29tZnlfdXJsOiBzdHIKCgpjbGFzcyBDb21meVVJR2VuZXJhdGVSZXF1ZXN0KEJhc2VNb2RlbCk6CiAgICBjb21meV91cmw6IHN0cgogICAgd29ya2Zsb3dfanNvbjogc3RyICAgICAgICAgICMgcmF3IEpTT04gc3RyaW5nIChBUEktZm9ybWF0KQogICAgcHJvbXB0X3RleHQ6IHN0cgogICAgbm9kZV9pZDogT3B0aW9uYWxbc3RyXSA9IE5vbmUKCgojIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQojIEVuZHBvaW50cwojIC0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQoKQGFwcC5wb3N0KCIvYXBpL2xvYWQtYm9vayIpCmFzeW5jIGRlZiBsb2FkX2Jvb2socmVxOiBMb2FkQm9va1JlcXVlc3QpOgogICAgaWYgc3RhdGVbImpvYl9zdGF0dXMiXSA9PSAicnVubmluZyI6CiAgICAgICAgcmFpc2UgSFRUUEV4Y2VwdGlvbihzdGF0dXNfY29kZT00MDksIGRldGFpbD0iQSBib29rIGlzIGFscmVhZHkgYmVpbmcgbG9hZGVkLiIpCgogICAgcmVxLmJvb2tfcGF0aCA9IHJlcS5ib29rX3BhdGguc3RyaXAoKS5zdHJpcCgiXCInIikKCiAgICBpZiBub3Qgb3MucGF0aC5leGlzdHMocmVxLmJvb2tfcGF0aCk6CiAgICAgICAgIyBGYWxsYmFjazogdHJ5IHJlbGF0aXZlIHRvIHR3byBsZXZlbHMgdXAgKHByb2plY3Qgcm9vdCBvZnRlbiBoYXMgZGF0YS8gZm9sZGVyKQogICAgICAgIGFsdF9wYXRoID0gb3MucGF0aC5qb2luKCIuLiIsICIuLiIsIHJlcS5ib29rX3BhdGgpCiAgICAgICAgaWYgb3MucGF0aC5leGlzdHMoYWx0X3BhdGgpOgogICAgICAgICAgICByZXEuYm9va19wYXRoID0gYWx0X3BhdGgKICAgICAgICBlbHNlOgogICAgICAgICAgICByYWlzZSBIVFRQRXhjZXB0aW9uKAogICAgICAgICAgICAgICAgc3RhdHVzX2NvZGU9NDAwLCAKICAgICAgICAgICAgICAgIGRldGFpbD1mIkJvb2sgZmlsZSBub3QgZm91bmQuIENoZWNrZWQ6IHtyZXEuYm9va19wYXRofSBhbmQge2FsdF9wYXRofSIKICAgICAgICAgICAgKQoKICAgIHQgPSB0aHJlYWRpbmcuVGhyZWFkKAogICAgICAgIHRhcmdldD1sb2FkX2Jvb2tfdGFzaywKICAgICAgICBhcmdzPShyZXEuYm9va19wYXRoLCByZXEuYm9va19uYW1lLCByZXEuY2hhcmFjdGVyX3NvdXJjZSksCiAgICAgICAgZGFlbW9uPVRydWUsCiAgICApCiAgICB0LnN0YXJ0KCkKICAgIHJldHVybiB7InN0YXR1cyI6ICJzdGFydGVkIn0KCgpkZWYgX2VwdWJfdG9fdHh0KGVwdWJfcGF0aDogc3RyLCBvdXRfcGF0aDogc3RyKSAtPiBOb25lOgogICAgYm9vayA9IGVwdWIucmVhZF9lcHViKGVwdWJfcGF0aCkKICAgIHBhcnRzID0gW10KICAgIGZvciBpdGVtIGluIGJvb2suZ2V0X2l0ZW1zX29mX3R5cGUoZWJvb2tsaWIuSVRFTV9ET0NVTUVOVCk6CiAgICAgICAgY29udGVudCA9IGl0ZW0uZ2V0X2NvbnRlbnQoKS5kZWNvZGUoInV0Zi04IiwgZXJyb3JzPSJpZ25vcmUiKQogICAgICAgIHRleHQgPSByZS5zdWIocijwpKjgrJz4iLCAiICIsIGNvbnRlbnQpCiAgICAgICAgdGV4dCA9IHJlLnN1YihyIlxzKyIsICIgIiwgdGV4dCkuc3RyaXAoKQogICAgICAgIGlmIHRleHQ6CiAgICAgICAgICAgIHBhcnRzLmFwcGVuZCh0ZXh0KQogICAgd2l0aCBvcGVuKG91dF9wYXRoLCAidyIsIGVuY29kaW5nPSJ1dGYtOCIpIGFzIGY6CiAgICAgICAgZi53cml0ZSgiXG5cbiIuam9pbihwYXJ0cykpCgoKQGFwcC5wb3N0KCIvYXBpL3VwbG9hZC1ib29rIikKYXN5bmMgZGVmIHVwbG9hZF9ib29rKAogICAgZmlsZTogVXBsb2FkRmlsZSA9IEZpbGUoLi4uKSwKICAgIGJvb2tfbmFtZTogc3RyID0gRm9ybSguLi4pLAogICAgY2hhcmFjdGVyX3NvdXJjZTogc3RyID0gRm9ybSgiYXV0byIpLAopOgogICAgaWYgc3RhdGVbImpvYl9zdGF0dXMiXSA9PSAicnVubmluZyI6CiAgICAgICAgcmFpc2UgSFRUUEV4Y2VwdGlvbihzdGF0dXNfY29kZT00MDksIGRldGFpbD0iQSBib29rIGlzIGFscmVhZHkgYmVpbmcgbG9hZGVkLiIpCgogICAgZmlsZW5hbWUgPSAoZmlsZS5maWxlbmFtZSBvciAiIikubG93ZXIoKQogICAgaWYgbm90IChmaWxlbmFtZS5lbmRzd2l0aCgiLnR4dCIpIG9yIGZpbGVuYW1lLmVuZHN3aXRoKCIuZXB1YiIpKToKICAgICAgICByYWlzZSBIVFRQRXhjZXB0aW9uKHN0YXR1c19jb2RlPTQwMCwgZGV0YWlsPSJPbmx5IC50eHQgYW5kIC5lcHViIGZpbGVzIGFyZSBzdXBwb3J0ZWQuIikKCiAgICBzdWZmaXggPSAiLmVwdWIiIGlmIGZpbGVuYW1lLmVuZHN3aXRoKCIuZXB1YiIpIGVsc2UgIi50eHQiCiAgICB3aXRoIHRlbXBmaWxlLk5hbWVkVGVtcG9yYXJ5RmlsZShkZWxldGU9RmFsc2UsIHN1ZmZpeD1zdWZmaXgpIGFzIHRtcDoKICAgICAgICB0bXAud3JpdGUoYXdhaXQgZmlsZS5yZWFkKCkpCiAgICAgICAgdG1wX3BhdGggPSB0bXAubmFtZQoKICAgIGlmIHN1ZmZpeCA9PSAiLmVwdWIiOgogICAgICAgIHR4dF9wYXRoID0gdG1wX3BhdGgucmVwbGFjZSgiLmVwdWIiLCAiLnR4dCIpCiAgICAgICAgX2VwdWJfdG9fdHh0KHRtcF9wYXRoLCB0eHRfcGF0aCkKICAgICAgICBvcy51bmxpbmsodG1wX3BhdGgpCiAgICAgICAgdG1wX3BhdGggPSB0eHRfcGF0aAoKICAgIHQgPSB0aHJlYWRpbmcuVGhyZWFkKAogICAgICAgIHRhcmdldD1sb2FkX2Jvb2tfdGFzaywKICAgICAgICBhcmdzPSh0bXBfcGF0aCwgYm9va19uYW1lLCBjaGFyYWN0ZXJfc291cmNlKSwKICAgICAgICBkYWVtb249VHJ1ZSwKICAgICkKICAgIHQuc3RhcnQoKQogICAgcmV0dXJuIHsic3RhdHVzIjogInN0YXJ0ZWQifQoKCkBhcHAuZ2V0KCIvYXBpL3N0YXR1cyIpCmFzeW5jIGRlZiBnZXRfc3RhdHVzKCk6CiAgICAiIiJTU0Ugc3RyZWFtIFx1MjAxNCB0aGUgY2xpZW50IHBvbGxzIHRoaXMgYWZ0ZXIgc3RhcnRpbmcgYSBsb2FkLWJvb2sgam9iLiIiIgogICAgYXN5bmMgZGVmIGV2ZW50X2dlbmVyYXRvcigpOgogICAgICAgIGxhc3Rfc25hcHNob3Q6IGRpY3QgPSB7fQogICAgICAgIHdoaWxlIFRydWU6CiAgICAgICAgICAgIHNuYXBzaG90ID0gewogICAgICAgICAgICAgICAgInN0YXR1cyI6IHN0YXRlWyJqb2Jfc3RhdHVzIl0sCiAgICAgICAgICAgICAgICAic3RhZ2UiOiBzdGF0ZVsic3RhZ2UiXSwKICAgICAgICAgICAgICAgICJwcm9ncmVzcyI6IHN0YXRlWyJwcm9ncmVzcyJdLAogICAgICAgICAgICAgICAgInRvdGFsIjogc3RhdGVbInRvdGFsIl0sCiAgICAgICAgICAgICAgICAibWVzc2FnZSI6IHN0YXRlWyJtZXNzYWdlIl0sCiAgICAgICAgICAgICAgICAiY2hhcmFjdGVycyI6IHN0YXRlWyJjaGFyYWN0ZXJzIl0sCiAgICAgICAgICAgIH0KICAgICAgICAgICAgaWYgc25hcHNob3QgIT0gbGFzdF9zbmFwc2hvdDoKICAgICAgICAgICAgICAgIHlpZWxkIGYiZGF0YToge2pzb24uZHVtcHMoc25hcHNob3QpfVxuXG4iCiAgICAgICAgICAgICAgICBsYXN0X3NuYXBzaG90ID0gZGljdChzbmFwc2hvdCkKCiAgICAgICAgICAgIGlmIHN0YXRlWyJqb2Jfc3RhdHVzIl0gaW4gKCJkb25lIiwgImVycm9yIik6CiAgICAgICAgICAgICAgICBicmVhawoKICAgICAgICAgICAgYXdhaXQgYXN5bmNpby5zbGVlcCgwLjUpCgogICAgcmV0dXJuIFN0cmVhbWluZ1Jlc3BvbnNlKAogICAgICAgIGV2ZW50X2dlbmVyYXRvcigpLAogICAgICAgIG1lZGlhX3R5cGU9InRleHQvZXZlbnQtc3RyZWFtIiwKICAgICAgICBoZWFkZXJzPXsKICAgICAgICAgICAgIkNhY2hlLUNvbnRyb2wiOiAibm8tY2FjaGUiLAogICAgICAgICAgICAiWC1BY2NlbC1CdWZmZXJpbmciOiAibm8iLAogICAgICAgIH0sCiAgICApCgoKQGFwcC5nZXQoIi9hcGkvY2hhcmFjdGVycyIpCmFzeW5jIGRlZiBnZXRfY2hhcmFjdGVycygpOgogICAgcmV0dXJuIHsKICAgICAgICAiY2hhcmFjdGVycyI6IHN0YXRlWyJjaGFyYWN0ZXJzIl0sCiAgICAgICAgInN0YXR1cyI6IHN0YXRlWyJqb2Jfc3RhdHVzIl0sCiAgICB9CgoKQGFwcC5wb3N0KCIvYXBpL2NoYXJhY3Rlci1kZXRhaWxzIikKYXN5bmMgZGVmIGNoYXJhY3Rlcl9kZXRhaWxzKHJlcTogQ2hhcmFjdGVyRGV0YWlsc1JlcXVlc3QpOgogICAgaWYgc3RhdGVbInZlY3RvcnN0b3JlIl0gaXMgTm9uZToKICAgICAgICByYWlzZSBIVFRQRXhjZXB0aW9uKAogICAgICAgICAgICBzdGF0dXNfY29kZT00MDAsCiAgICAgICAgICAgIGRldGFpbD0iTm8gYm9vayBsb2FkZWQuIENhbGwgL2FwaS9sb2FkLWJvb2sgZmlyc3QuIiwKICAgICAgICApCgogICAgdHJ5OgogICAgICAgICMgUmV0cmlldmUgYSB0b3Agc2NlbmUgZm9yIGJhc2VsaW5lIGRlc2NyaXB0aW9uCiAgICAgICAgc2l0dWF0aW9ucyA9IGdldF9jaGFyYWN0ZXJfc2l0dWF0aW9ucygKICAgICAgICAgICAgdmVjdG9yc3RvcmU9c3RhdGVbInZlY3RvcnN0b3JlIl0sCiAgICAgICAgICAgIGNoYXJhY3Rlcl9uYW1lPXJlcS5jaGFyYWN0ZXJfbmFtZSwKICAgICAgICAgICAgaz02LAogICAgICAgICkKICAgICAgICBib29rX3RleHQgPSAiXG5cbiIuam9pbihzaXR1YXRpb25zKQoKICAgICAgICBkZXNjcmlwdGlvbiA9IGFuYWx5emVfY2hhcmFjdGVyKAogICAgICAgICAgICBib29rX3RleHQ9Ym9va190ZXh0LAogICAgICAgICAgICBjaGFyYWN0ZXJfbmFtZT1yZXEuY2hhcmFjdGVyX25hbWUsCiAgICAgICAgKQoKICAgICAgICBzY2VuYXJpb3MgPSBnZXRfc2NlbmFyaW9fc3VtbWFyaWVzKAogICAgICAgICAgICB2ZWN0b3JzdG9yZT1zdGF0ZVsidmVjdG9yc3RvcmUiXSwKICAgICAgICAgICAgY2hhcmFjdGVyX25hbWU9cmVxLmNoYXJhY3Rlcl9uYW1lLAogICAgICAgICkKCiAgICAgICAgcmV0dXJuIHsKICAgICAgICAgICAgImRlc2NyaXB0aW9uIjogZGVzY3JpcHRpb24sCiAgICAgICAgICAgICJzY2VuYXJpb3MiOiBzY2VuYXJpb3MsCiAgICAgICAgfQogICAgZXhjZXB0IEV4Y2VwdGlvbiBhcyBlOgogICAgICAgIHJhaXNlIEhUVFBFeGNlcHRpb24oc3RhdHVzX2NvZGU9NTAwLCBkZXRhaWw9c3RyKGUpKQoKCkBhcHAucG9zdCgiL2FwaS9jYXN0LWFjdG9yIikKYXN5bmMgZGVmIGNhc3RfYWN0b3IocmVxOiBDYXN0QWN0b3JSZXF1ZXN0KToKICAgIGlmIHN0YXRlWyJ2ZWN0b3JzdG9yZSJdIGlzIE5vbmU6CiAgICAgICAgcmFpc2UgSFRUUEV4Y2VwdGlvbigKICAgICAgICAgICAgc3RhdHVzX2NvZGU9NDAwLAogICAgICAgICAgICBkZXRhaWw9Ik5vIGJvb2sgbG9hZGVkLiBDYWxsIC9hcGkvbG9hZC1ib29rIGZpcnN0LiIsCiAgICAgICAgKQoKICAgIHRyeToKICAgICAgICByZXN1bHQgPSBjYXN0X2NoYXJhY3Rlcl93aXRoX2FjdG9yKAogICAgICAgICAgICBjaGFyYWN0ZXJfbmFtZT1yZXEuY2hhcmFjdGVyX25hbWUsCiAgICAgICAgICAgIGRlc2NyaXB0aW9uPXJlcS5kZXNjcmlwdGlvbiwKICAgICAgICAgICAgaW5kdXN0cnk9cmVxLmluZHVzdHJ5LAogICAgICAgICAgICBnZW5yZT1yZXEuZ2VucmUsCiAgICAgICAgICAgIGRlY2FkZT1yZXEuZGVjYWRlLAogICAgICAgICkKICAgICAgICByZXR1cm4gcmVzdWx0CiAgICBleGNlcHQgRXhjZXB0aW9uIGFzIGU6CiAgICAgICAgcmFpc2UgSFRUUEV4Y2VwdGlvbihzdGF0dXNfY29kZT01MDAsIGRldGFpbD1zdHIoZSkpCgoKQGFwcC5wb3N0KCIvYXBpL2dlbmVyYXRlLXByb21wdCIpCmFzeW5jIGRlZiBnZW5lcmF0ZV9wcm9tcHQocmVxOiBHZW5lcmF0ZVByb21wdFJlcXVlc3QpOgogICAgaWYgc3RhdGVbInZlY3RvcnN0b3JlIl0gaXMgTm9uZToKICAgICAgICByYWlzZSBIVFRQRXhjZXB0aW9uKAogICAgICAgICAgICBzdGF0dXNfY29kZT00MDAsCiAgICAgICAgICAgIGRldGFpbD0iTm8gYm9vayBsb2FkZWQuIENhbGwgL2FwaS9sb2FkLWJvb2sgZmlyc3QuIiwKICAgICAgICApCgogICAgdHJ5OgogICAgICAgIHByb21wdCA9IGdlbmVyYXRlX3Byb21wdF9mb3Jfc2NlbmFyaW8oCiAgICAgICAgICAgIHZlY3RvcnN0b3JlPXN0YXRlWyJ2ZWN0b3JzdG9yZSJdLAogICAgICAgICAgICBjaGFyYWN0ZXJfbmFtZT1yZXEuY2hhcmFjdGVyX25hbWUsCiAgICAgICAgICAgIGRlc2NyaXB0aW9uPXJlcS5kZXNjcmlwdGlvbiwKICAgICAgICAgICAgc2NlbmFyaW9fY29udGV4dD1yZXEuc2NlbmFyaW9fY29udGV4dCwKICAgICAgICAgICAgYWN0b3JfbmFtZT1yZXEuYWN0b3JfbmFtZSwKICAgICAgICAgICAgZ2VucmU9cmVxLmdlbnJlLAogICAgICAgICAgICBkZWNhZGU9cmVxLmRlY2FkZSwKICAgICAgICAgICAgZ2VuZGVyPXJlcS5nZW5kZXIsCiAgICAgICAgICAgIHJhY2U9cmVxLnJhY2UsCiAgICAgICAgICAgIGFnZT1yZXEuYWdlLAogICAgICAgICkKICAgICAgICByZXR1cm4gcHJvbXB0CiAgICBleGNlcHQgRXhjZXB0aW9uIGFzIGU6CiAgICAgICAgcmFpc2UgSFRUUEV4Y2VwdGlvbihzdGF0dXNfY29kZT01MDAsIGRldGFpbD1zdHIoZSkpCgoKQGFwcC5wb3N0KCIvYXBpL2NvbWZ5dWkvdGVzdCIpCmFzeW5jIGRlZiBjb21meXVpX3Rlc3QocmVxOiBDb21meVVJVGVzdFJlcXVlc3QpOgogICAgIiIiUGluZyB0aGUgQ29tZnlVSSBzZXJ2ZXIgdG8gY2hlY2sgaXQncyB1cC4iIiIKICAgIHRyeToKICAgICAgICByZXN1bHQgPSB0ZXN0X2Nvbm5lY3Rpb24ocmVxLmNvbWZ5X3VybCkKICAgICAgICByZXR1cm4gcmVzdWx0CiAgICBleGNlcHQgRXhjZXB0aW9uIGFzIGU6CiAgICAgICAgcmFpc2UgSFRUUEV4Y2VwdGlvbihzdGF0dXNfY29kZT01MDAsIGRldGFpbD1zdHIoZSkpCgoKQGFwcC5wb3N0KCIvYXBpL2NvbWZ5dWkvZ2VuZXJhdGUiKQphc3luYyBkZWYgY29tZnl1aV9nZW5lcmF0ZShyZXE6IENvbWZ5VUlHZW5lcmF0ZVJlcXVlc3QpOgogICAgIiIiCiAgICBJbmplY3QgcHJvbXB0LCBxdWV1ZSBpdCBpbiBDb21meVVJLCBhbmQgc3RyZWFtIHByb2dyZXNzIHZpYSBTU0UuCiAgICAiIiIKICAgIHRyeToKICAgICAgICB3b3JrZmxvdyA9IGluamVjdF9wcm9tcHRfaW50b193b3JrZmxvdygKICAgICAgICAgICAgd29ya2Zsb3dfanNvbj1yZXEud29ya2Zsb3dfanNvbiwKICAgICAgICAgICAgcHJvbXB0X3RleHQ9cmVxLnByb21wdF90ZXh0LAogICAgICAgICAgICBub2RlX2lkPXJlcS5ub2RlX2lkLAogICAgICAgICkKICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZToKICAgICAgICByYWlzZSBIVFRQRXhjZXB0aW9uKHN0YXR1c19jb2RlPTQwMCwgZGV0YWlsPWYiV29ya2Zsb3cgZXJyb3I6IHtlfSIpCgogICAgdHJ5OgogICAgICAgIHByb21wdF9pZCA9IHF1ZXVlX3Byb21wdChyZXEuY29tZnlfdXJsLCB3b3JrZmxvdykKICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZToKICAgICAgICByYWlzZSBIVFRQRXhjZXB0aW9uKHN0YXR1c19jb2RlPTUwMiwgZGV0YWlsPWYiQ29tZnlVSSBxdWV1ZSBlcnJvcjoge2V9IikKCiAgICBhc3luYyBkZWYgc3RyZWFtKCk6CiAgICAgICAgdHJ5OgogICAgICAgICAgICBmb3IgZXZlbnQgaW4gcG9sbF91bnRpbF9kb25lKHJlcS5jb21meV91cmwsIHByb21wdF9pZCk6CiAgICAgICAgICAgICAgICB5aWVsZCBmImRhdGE6IHtqc29uLmR1bXBzKGV2ZW50KX1cblxuIgogICAgICAgICAgICAgICAgYXdhaXQgYXN5bmNpby5zbGVlcCgwKQogICAgICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZToKICAgICAgICAgICAgeWllbGQgZiJkYXRhOiB7anNvbi5kdW1wcyh7J3N0YXR1cyc6ICdlcnJvcicsICdtZXNzYWdlJzogc3RyKGUpfSl9XG5cbiIKCiAgICByZXR1cm4gU3RyZWFtaW5nUmVzcG9uc2UoCiAgICAgICAgc3RyZWFtKCksCiAgICAgICAgbWVkaWFfdHlwZT0idGV4dC9ldmVudC1zdHJlYW0iLAogICAgICAgIGhlYWRlcnM9eyJDYWNoZS1Db250cm9sIjogIm5vLWNhY2hlIiwgIlgtQWNjZWwtQnVmZmVyaW5nIjogIm5vIn0sCiAgICApCgoKQGFwcC5nZXQoIi9hcGkvY29tZnl1aS9pbWFnZS97cHJvbXB0X2lkfSIpCmFzeW5jIGRlZiBnZXRfY29tZnl1aV9pbWFnZShwcm9tcHRfaWQ6IHN0ciwgY29tZnlfdXJsOiBzdHIpOgogICAgIiIiUHJveHktZmV0Y2ggdGhlIGZpbmlzaGVkIGltYWdlIGZyb20gQ29tZnlVSS4iIiIKICAgIHRyeToKICAgICAgICBpbWdfYnl0ZXMgPSBnZXRfb3V0cHV0X2ltYWdlX2J5dGVzKGNvbWZ5X3VybCwgcHJvbXB0X2lkKQogICAgICAgIHJldHVybiBSZXNwb25zZShjb250ZW50PWltZ19ieXRlcywgbWVkaWFfdHlwZT0iaW1hZ2UvcG5nIikKICAgIGV4Y2VwdCBFeGNlcHRpb24gYXMgZToKICAgICAgICByYWlzZSBIVFRQRXhjZXB0aW9uKHN0YXR1c19jb2RlPTUwMiwgZGV0YWlsPXN0cihlKSkKCgppZiBfX25hbWVfXyA9PSAiX19tYWluX18iOgogICAgaW1wb3J0IHV2aWNvcm4KICAgIHV2aWNvcm4ucnVuKCJtYWluOmFwcCIsIGhvc3Q9IjAuMC4wLjAiLCBwb3J0PTgwMDAsIHJlbG9hZD1UcnVlKQo=
+"""
+main.py — FastAPI backend for the Character Generation app.
+
+Endpoints:
+  POST /api/load-book                 start background indexing job
+  GET  /api/status                    SSE stream of job progress
+  GET  /api/characters                return cached character list
+  POST /api/character-details         analyze character + get RAG scenarios
+  POST /api/cast-actor                cast an actor for the character
+  POST /api/generate-prompt           build the final Z-Image-Turbo prompt
+  POST /api/comfyui/test              verify ComfyUI is reachable
+  POST /api/comfyui/generate          queue + stream SSE progress for image gen
+  GET  /api/comfyui/image/{prompt_id} proxy-fetch the finished image
+"""
+import os
+import re
+import asyncio
+import threading
+import json
+import tempfile
+from typing import Any, Optional
+import urllib.request
+import urllib.parse
+import urllib.error
+
+import ebooklib
+from ebooklib import epub
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, Response
+from pydantic import BaseModel
+
+from character_gen import (
+    get_major_character_names,
+    build_book_index,
+    get_scenario_summaries,
+    analyze_character,
+    get_character_situations,
+    cast_character_with_actor,
+    generate_prompt_for_scenario,
+)
+from comfyui import (
+    inject_prompt_into_workflow,
+    queue_prompt,
+    poll_until_done,
+    get_output_image_bytes,
+    test_connection,
+)
+
+# ---------------------------------------------------------------------------
+# App setup
+# ---------------------------------------------------------------------------
+
+app = FastAPI(title="Character Generation API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ---------------------------------------------------------------------------
+# Shared in-memory state (single-user dev app — no auth needed)
+# ---------------------------------------------------------------------------
+
+state: dict[str, Any] = {
+    "job_status": "idle",   # idle | running | done | error
+    "stage": "",
+    "progress": 0,
+    "total": 0,
+    "message": "",
+    "characters": [],
+    "vectorstore": None,
+    "book_title": "",
+    "error": None,
+}
+
+
+# ---------------------------------------------------------------------------
+# Background indexing thread
+# ---------------------------------------------------------------------------
+
+def load_book_task(book_path: str, book_name: str, character_source: str = "auto") -> None:
+    """
+    Runs in a daemon thread; writes progress into `state`.
+
+    character_source controls how the character list is obtained:
+      "wiki"        — Wikipedia only (original behaviour)
+      "txt_extract" — LLM + text sampling from the local file
+      "hanlp"       — HanLP MTL pipeline NER (no LLM needed)
+      "auto"        — Wiki → HanLP NER → txt_extract fallback chain (default)
+    """
+    try:
+        state["job_status"] = "running"
+        state["characters"] = []
+        state["vectorstore"] = None
+        state["book_title"] = book_name
+        state["error"] = None
+
+        # Step 1 — Character list
+        source_label = {
+            "wiki":        "Wikipedia",
+            "txt_extract": "local file (LLM sampling)",
+            "hanlp":       "HanLP NER (MTL pipeline)",
+            "auto":        "auto (Wiki → HanLP NER → local file)",
+        }.get(character_source, character_source)
+
+        state["stage"] = "characters"
+        state["progress"] = 0
+        state["total"] = 1
+        state["message"] = f"Fetching character list via {source_label}…"
+
+        characters = get_major_character_names(
+            book_title=book_name,
+            txt_filepath=book_path,
+            source=character_source,
+        )
+        state["characters"] = characters
+        state["progress"] = 1
+        state["message"] = f"Found {len(characters)} characters. Building vector index…"
+
+        # Step 2 — Vector index with live progress
+        def prog_cb(stage: str, n: int, total: int, msg: str) -> None:
+            state["stage"] = stage
+            state["progress"] = n
+            state["total"] = total
+            state["message"] = msg
+
+        vectorstore = build_book_index(book_path, progress_cb=prog_cb)
+        state["vectorstore"] = vectorstore
+        state["job_status"] = "done"
+        state["message"] = (
+            f"Ready! Indexed the book and found {len(characters)} characters."
+        )
+
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        state["job_status"] = "error"
+        state["error"] = str(exc)
+        state["message"] = f"Error: {exc}"
+
+
+# ---------------------------------------------------------------------------
+# Request / response models
+# ---------------------------------------------------------------------------
+
+class LoadBookRequest(BaseModel):
+    book_path: str
+    book_name: str
+    # Controls where the character list comes from.
+    # "wiki"        — Wikipedia only
+    # "txt_extract" — LLM + local text sampling
+    # "hanlp"       — HanLP NER MTL pipeline (no LLM needed)
+    # "auto"        — Wiki → HanLP NER → txt_extract fallback chain (default)
+    character_source: str = "auto"
+
+
+class CharacterDetailsRequest(BaseModel):
+    character_name: str
+
+
+class CastActorRequest(BaseModel):
+    character_name: str
+    description: str
+    industry: str = "hollywood"
+    genre: str = ""
+    decade: str = "2026"
+
+
+class GeneratePromptRequest(BaseModel):
+    character_name: str
+    description: str
+    scenario_context: str
+    actor_name: str = ""
+    genre: str = ""
+    decade: str = "2026"
+    gender: str = ""
+    race: str = ""
+    age: str = ""
+
+
+class ComfyUITestRequest(BaseModel):
+    comfy_url: str
+
+
+class ComfyUIGenerateRequest(BaseModel):
+    comfy_url: str
+    workflow_json: str          # raw JSON string (API-format)
+    prompt_text: str
+    node_id: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/load-book")
+async def load_book(req: LoadBookRequest):
+    if state["job_status"] == "running":
+        raise HTTPException(status_code=409, detail="A book is already being loaded.")
+
+    req.book_path = req.book_path.strip().strip("\"'")
+
+    if not os.path.exists(req.book_path):
+        # Fallback: try relative to two levels up (project root often has data/ folder)
+        alt_path = os.path.join("..", "..", req.book_path)
+        if os.path.exists(alt_path):
+            req.book_path = alt_path
+        else:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Book file not found. Checked: {req.book_path} and {alt_path}"
+            )
+
+    t = threading.Thread(
+        target=load_book_task,
+        args=(req.book_path, req.book_name, req.character_source),
+        daemon=True,
+    )
+    t.start()
+    return {"status": "started"}
+
+
+def _epub_to_txt(epub_path: str, out_path: str) -> None:
+    book = epub.read_epub(epub_path)
+    parts = []
+    for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+        content = item.get_content().decode("utf-8", errors="ignore")
+        text = re.sub(r"<[^>]+>", " ", content)
+        text = re.sub(r"\s+", " ", text).strip()
+        if text:
+            parts.append(text)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write("\n\n".join(parts))
+
+
+@app.post("/api/upload-book")
+async def upload_book(
+    file: UploadFile = File(...),
+    book_name: str = Form(...),
+    character_source: str = Form("auto"),
+):
+    if state["job_status"] == "running":
+        raise HTTPException(status_code=409, detail="A book is already being loaded.")
+
+    filename = (file.filename or "").lower()
+    if not (filename.endswith(".txt") or filename.endswith(".epub")):
+        raise HTTPException(status_code=400, detail="Only .txt and .epub files are supported.")
+
+    suffix = ".epub" if filename.endswith(".epub") else ".txt"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    if suffix == ".epub":
+        txt_path = tmp_path.replace(".epub", ".txt")
+        _epub_to_txt(tmp_path, txt_path)
+        os.unlink(tmp_path)
+        tmp_path = txt_path
+
+    t = threading.Thread(
+        target=load_book_task,
+        args=(tmp_path, book_name, character_source),
+        daemon=True,
+    )
+    t.start()
+    return {"status": "started"}
+
+
+@app.get("/api/status")
+async def get_status():
+    """SSE stream — the client polls this after starting a load-book job."""
+    async def event_generator():
+        last_snapshot: dict = {}
+        while True:
+            snapshot = {
+                "status": state["job_status"],
+                "stage": state["stage"],
+                "progress": state["progress"],
+                "total": state["total"],
+                "message": state["message"],
+                "characters": state["characters"],
+            }
+            if snapshot != last_snapshot:
+                yield f"data: {json.dumps(snapshot)}\n\n"
+                last_snapshot = dict(snapshot)
+
+            if state["job_status"] in ("done", "error"):
+                break
+
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.get("/api/characters")
+async def get_characters():
+    return {
+        "characters": state["characters"],
+        "status": state["job_status"],
+    }
+
+
+@app.post("/api/character-details")
+async def character_details(req: CharacterDetailsRequest):
+    if state["vectorstore"] is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No book loaded. Call /api/load-book first.",
+        )
+
+    try:
+        # Retrieve a top scene for baseline description
+        situations = get_character_situations(
+            vectorstore=state["vectorstore"],
+            character_name=req.character_name,
+            k=6,
+        )
+        book_text = "\n\n".join(situations)
+
+        description = analyze_character(
+            book_text=book_text,
+            character_name=req.character_name,
+        )
+
+        scenarios = get_scenario_summaries(
+            vectorstore=state["vectorstore"],
+            character_name=req.character_name,
+        )
+
+        return {
+            "description": description,
+            "scenarios": scenarios,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/cast-actor")
+async def cast_actor(req: CastActorRequest):
+    if state["vectorstore"] is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No book loaded. Call /api/load-book first.",
+        )
+
+    try:
+        result = cast_character_with_actor(
+            character_name=req.character_name,
+            description=req.description,
+            industry=req.industry,
+            genre=req.genre,
+            decade=req.decade,
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/generate-prompt")
+async def generate_prompt(req: GeneratePromptRequest):
+    if state["vectorstore"] is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No book loaded. Call /api/load-book first.",
+        )
+
+    try:
+        prompt = generate_prompt_for_scenario(
+            vectorstore=state["vectorstore"],
+            character_name=req.character_name,
+            description=req.description,
+            scenario_context=req.scenario_context,
+            actor_name=req.actor_name,
+            genre=req.genre,
+            decade=req.decade,
+            gender=req.gender,
+            race=req.race,
+            age=req.age,
+        )
+        return prompt
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/comfyui/test")
+async def comfyui_test(req: ComfyUITestRequest):
+    """Ping the ComfyUI server to check it's up."""
+    try:
+        result = test_connection(req.comfy_url)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/comfyui/generate")
+async def comfyui_generate(req: ComfyUIGenerateRequest):
+    """
+    Inject prompt, queue it in ComfyUI, and stream progress via SSE.
+    """
+    try:
+        workflow = inject_prompt_into_workflow(
+            workflow_json=req.workflow_json,
+            prompt_text=req.prompt_text,
+            node_id=req.node_id,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Workflow error: {e}")
+
+    try:
+        prompt_id = queue_prompt(req.comfy_url, workflow)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"ComfyUI queue error: {e}")
+
+    async def stream():
+        try:
+            for event in poll_until_done(req.comfy_url, prompt_id):
+                yield f"data: {json.dumps(event)}\n\n"
+                await asyncio.sleep(0)
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/api/comfyui/image/{prompt_id}")
+async def get_comfyui_image(prompt_id: str, comfy_url: str):
+    """Proxy-fetch the finished image from ComfyUI."""
+    try:
+        img_bytes = get_output_image_bytes(comfy_url, prompt_id)
+        return Response(content=img_bytes, media_type="image/png")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
