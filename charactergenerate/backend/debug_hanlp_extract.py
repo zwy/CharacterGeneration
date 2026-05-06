@@ -125,11 +125,9 @@ def test_hanlp_strategy():
             print(f"  {i:>2}. {c}")
         print()
         print("[OK] HanLP 策略测试通过。")
-        return chars
     except Exception:
         import traceback
         traceback.print_exc()
-        return []
 
 
 def test_compare_strategies():
@@ -149,7 +147,7 @@ def test_compare_strategies():
     )
     t_hanlp = time.time() - t0
 
-    print(f"… 运行 txt_extract 策略 ...")
+    print("… 运行 txt_extract 策略 ...")
     t0 = time.time()
     txt_chars = get_major_character_names_from_txt(TXT_FILE, BOOK_NAME)
     t_txt = time.time() - t0
