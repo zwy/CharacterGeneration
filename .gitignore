@@ -1,0 +1,3 @@
+/charactergenerate/backend/__pycache__
+/charactergenerate/frontend/node_modules/.vite
+charactergenerate/backend/.env
