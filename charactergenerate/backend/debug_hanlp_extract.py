@@ -17,8 +17,10 @@ from character_gen import (
 # ---------------------------------------------------------------------------
 # 配置：改成你本地 txt 文件的实际路径和书名
 # ---------------------------------------------------------------------------
-TXT_FILE  = r'C:\path\to\your_novel.txt'   # ← 改这里
-BOOK_NAME = "你的小说名"                        # ← 或留空白（仅作提示）
+# TXT_FILE = r'c:\Users\Administrator\Desktop\淫荡少妇白洁.txt'   # ← 改这里
+# BOOK_NAME = "淫荡少妇白洁"                        # ← 或留空白（仅作提示）
+TXT_FILE = r'c:\Users\Administrator\Desktop\女生宿舍门房秦大爷的故事.txt'   # ← 改这里
+BOOK_NAME = "女生宿舍门房秦大爷的故事"                        # ← 或留空白（仅作提示）
 MAX_CANDIDATES = 80                        # NER 候选名最大保留数量
 # ---------------------------------------------------------------------------
 
@@ -210,5 +212,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     test_hanlp_strategy()
-    test_compare_strategies()
-    test_auto_mode()
+    # test_compare_strategies()
+    
+    # test_auto_mode()
