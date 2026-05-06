@@ -21,6 +21,8 @@
 
 # 二、工作原理（七步流水线）
 
+![CharacterGeneration 七步流水线（横向图）](./pipeline-horizontal.png)
+
 ## Step 1：Wikipedia 预热 → 获取角色名单
   输入：书名（字符串）
   过程：查询 Wikipedia 抓取书籍百科页面（最多15000字）→ 交给 LLM 提取主要角色名
@@ -216,6 +218,8 @@
 ---
 
 # 四、架构总结
+
+![CharacterGeneration 架构流程（纵向图）](./pipeline-vertical.png)
 
   小说.txt
       ↓ LangChain + 分块
