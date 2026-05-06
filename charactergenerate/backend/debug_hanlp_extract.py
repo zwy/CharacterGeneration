@@ -287,7 +287,7 @@ if __name__ == "__main__":
     print("\n>>> CharacterGeneration — HanLP NER 策略调试脚本 <<<\n")
     print_config()
 
-    test_hanlp_output_format()
+    # test_hanlp_output_format()
 
     ok = test_read_full()
     if not ok:
@@ -300,4 +300,4 @@ if __name__ == "__main__":
 
     test_hanlp_strategy()
     test_compare_strategies()
-    test_auto_mode()
+    # test_auto_mode()
