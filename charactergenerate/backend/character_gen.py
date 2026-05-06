@@ -52,13 +52,10 @@ def _split_names(text: str) -> list[str]:
     Handles both English commas (,) and Chinese fullwidth commas (，).
     Also strips leading numbers/dots like "1. " that some models emit.
     """
-    # Normalise Chinese comma to ASCII comma first
     text = text.replace("，", ",")
-    # Split on comma; also tolerate newlines between names
     parts = re.split(r"[,\n]+", text)
     names = []
     for p in parts:
-        # Strip leading ordinal markers: "1.", "1)", "•", "-", etc.
         p = re.sub(r"^\s*[\d\u4e00\u4e8c\u4e09\uff0e.\-)\u2022\u00b7]+\s*", "", p)
         p = p.strip()
         if p:
@@ -120,15 +117,10 @@ def get_major_character_names_from_wiki(book_title: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# 1b. TXT sampling — major character names (new LLM+sampling strategy)
+# 1b. TXT sampling — major character names
 # ---------------------------------------------------------------------------
 
 def _sample_txt(txt_filepath: str, total_chars: int = 15000) -> str:
-    """
-    Sample text from beginning, middle, and end of the file.
-    Returns a combined excerpt of roughly `total_chars` characters.
-    Handles UTF-8 and GBK encodings automatically.
-    """
     for enc in ("utf-8", "gbk", "utf-8-sig"):
         try:
             with open(txt_filepath, "r", encoding=enc, errors="ignore") as f:
@@ -157,11 +149,6 @@ def _sample_txt(txt_filepath: str, total_chars: int = 15000) -> str:
 
 
 def get_major_character_names_from_txt(txt_filepath: str, book_title: str = "") -> list[str]:
-    """
-    Sample the TXT file from head / middle / tail, then ask the LLM to
-    extract major character names.  Works for Chinese web novels and any
-    local file that has no Wikipedia entry.
-    """
     try:
         sample = _sample_txt(txt_filepath)
         if not sample:
@@ -208,25 +195,40 @@ def _extract_names_hanlp(text: str) -> list[str]:
     """
     Use HanLP to perform Named Entity Recognition and extract PERSON entities.
 
-    Tries two backends in order:
-      1. hanlp (full pipeline with MSRA NER) — higher accuracy, requires hanlp package
-      2. jieba posseg (nr tag) — lightweight fallback, lower accuracy
+    Model priority (all pure PyTorch, no TensorFlow required):
+      1. MSRA_NER_ELECTRA_SMALL_ZH  — fast, small, PyTorch-only  ✓
+      2. MSRA_NER_BERT_BASE_ZH      — accurate but needs TF; skip if TF absent
+      3. jieba posseg (nr tag)       — zero-dependency fallback
 
     Returns a deduplicated list of candidate person names sorted by frequency (desc).
     """
-    # --- Try HanLP first ---
     try:
         import hanlp  # type: ignore
-        # Load a fast NER pipeline; cache is handled by hanlp automatically
-        # Using the smaller, faster model to keep memory footprint low
-        ner = hanlp.load(hanlp.pretrained.ner.MSRA_NER_BERT_BASE_ZH)  # type: ignore
 
-        # HanLP NER expects a list of sentences; chunk to avoid OOM on large texts
+        # Ordered list of models to try: prefer PyTorch-only ones first.
+        # ELECTRA_SMALL is pure PyTorch and works on Python 3.11 + TF 2.18.
+        _MODEL_CANDIDATES = [
+            "MSRA_NER_ELECTRA_SMALL_ZH",  # PyTorch-only, fast
+            "MSRA_NER_BERT_BASE_ZH",      # requires TF ≤ 2.13
+        ]
+
+        ner = None
+        for model_attr in _MODEL_CANDIDATES:
+            try:
+                model_id = getattr(hanlp.pretrained.ner, model_attr)
+                ner = hanlp.load(model_id)
+                print(f"[HanLP NER] Loaded model: {model_attr}")
+                break
+            except Exception as model_err:
+                print(f"[HanLP NER] Skipping {model_attr}: {model_err}")
+
+        if ner is None:
+            raise RuntimeError("All HanLP NER models failed to load.")
+
         CHUNK = 5000
         freq: dict[str, int] = {}
         for i in range(0, len(text), CHUNK):
-            chunk = text[i : i + CHUNK]
-            # hanlp ner accepts a plain string for convenience
+            chunk = text[i: i + CHUNK]
             entities = ner(chunk)
             for entity, label, *_ in entities:
                 if label == "PERSON":
@@ -235,7 +237,6 @@ def _extract_names_hanlp(text: str) -> list[str]:
                         freq[entity] = freq.get(entity, 0) + 1
 
         print(f"[HanLP NER] Extracted {len(freq)} unique candidate names.")
-        # Sort by frequency descending so the most prominent names come first
         return [name for name, _ in sorted(freq.items(), key=lambda x: -x[1])]
 
     except ImportError:
@@ -250,7 +251,7 @@ def _extract_names_hanlp(text: str) -> list[str]:
         for word, flag in pseg.cut(text):
             if flag == "nr":
                 word = word.strip()
-                if len(word) >= 2:  # skip single-character noise
+                if len(word) >= 2:
                     freq[word] = freq.get(word, 0) + 1
         print(f"[jieba NER] Extracted {len(freq)} unique candidate names.")
         return [name for name, _ in sorted(freq.items(), key=lambda x: -x[1])]
@@ -278,18 +279,6 @@ def get_major_character_names_from_txt_hanlp(
         Send only the candidate name list to the LLM.
         Ask it to: remove non-character noise, merge aliases/titles for the
         same character, and return the final clean list.
-
-    This approach consumes roughly 1/30th the tokens of sending the full text
-    to an LLM, while achieving ~93%+ recall on Chinese web novels.
-
-    Args:
-        txt_filepath:   Path to the local .txt novel file.
-        book_title:     Optional title hint passed to the LLM.
-        max_candidates: Maximum number of NER candidates forwarded to the LLM.
-                        Increase if the novel has many distinct characters.
-
-    Returns:
-        List of final character name strings.
     """
     try:
         full_text = _read_full_txt(txt_filepath)
@@ -297,19 +286,16 @@ def get_major_character_names_from_txt_hanlp(
             print("[HanLP Strategy] Could not read file.")
             return []
 
-        # Step 1: local NER — 0 LLM tokens
         candidates = _extract_names_hanlp(full_text)
         if not candidates:
             print("[HanLP Strategy] NER returned no candidates, falling back to txt_extract.")
             return get_major_character_names_from_txt(txt_filepath, book_title)
 
-        # Trim to max_candidates (already sorted by frequency)
         candidates = candidates[:max_candidates]
         print(f"[HanLP Strategy] Sending {len(candidates)} candidates to LLM for refinement.")
 
-        # Step 2: single LLM call — only the name list, not the full text
         title_hint = f" from the novel '{book_title}'" if book_title else ""
-        candidate_str = "、".join(candidates)  # Chinese enumeration separator
+        candidate_str = "、".join(candidates)
 
         prompt = (
             f"以下是从一部小说{title_hint}中通过命名实体识别提取的候选人名列表。\n"
@@ -328,8 +314,6 @@ def get_major_character_names_from_txt_hanlp(
             messages=[{"role": "user", "content": prompt}]
         )
         raw = response.choices[0].message.content.strip()
-
-        # Parse the response — support both 、 and , separators
         raw = raw.replace("、", ",")
         characters = _split_names(raw)
         print(f"[HanLP Strategy] Final character list ({len(characters)}): {characters}")
@@ -507,8 +491,8 @@ Book excerpt:
 # ---------------------------------------------------------------------------
 
 def cast_character_with_actor(
-    character_name: str, 
-    character_description: str, 
+    character_name: str,
+    character_description: str,
     industry: str = "hollywood",
     genre: str = "",
     decade: str = "2026"
@@ -556,14 +540,12 @@ def generate_prompt_for_scenario(
     """
     client = get_llm_client()
 
-    # Create override block
     overrides = []
     if gender: overrides.append(f"Gender: {gender}")
     if race: overrides.append(f"Race/Ethnicity: {race}")
     if age: overrides.append(f"Age: {age}")
     override_text = "\n".join(overrides)
 
-    # Extract scene-specific details with genre adaptation for visuals
     genre_context = f" (Adapted specifically for the {genre} genre)" if genre else ""
     extract_prompt = (
         f"Given this book scene{genre_context}, identify the location and what {character_name} is doing.\n"

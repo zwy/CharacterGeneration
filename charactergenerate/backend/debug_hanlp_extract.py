@@ -1,40 +1,94 @@
+"""
+debug_hanlp_extract.py
+调试 HanLP NER + LLM 精炼策略的独立测试脚本。
+
+用法：
+  # 最简单：直接修改下方 TXT_FILE / BOOK_NAME 后运行
+  python debug_hanlp_extract.py
+
+  # 或通过命令行参数传入（不需要改文件）
+  python debug_hanlp_extract.py \\
+      --txt  "C:\\path\\to\\novel.txt" \\
+      --book "小说名称" \\
+      --base-url http://localhost:11434/v1 \\
+      --model Gemma4E4B:latest
+"""
+
 import sys
 import os
 import time
+import argparse
 
-backend_path = os.path.dirname(os.path.abspath(__file__))
-if backend_path not in sys.path:
-    sys.path.insert(0, backend_path)
+# ---------------------------------------------------------------------------
+# 确保能 import character_gen，无论从哪个目录运行
+# ---------------------------------------------------------------------------
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
 
+# 先加载 .env（必须在 import character_gen 之前，因为 character_gen 在模块级读取环境变量）
+from dotenv import load_dotenv
+load_dotenv(os.path.join(_BACKEND_DIR, ".env"))
+
+# ---------------------------------------------------------------------------
+# 命令行参数解析（可选，优先级高于下方默认值）
+# ---------------------------------------------------------------------------
+parser = argparse.ArgumentParser(description="调试 HanLP NER + LLM 精炼策略")
+parser.add_argument("--txt",      default=None, help="小说 txt 文件路径")
+parser.add_argument("--book",     default=None, help="书名（可选，仅作 LLM 提示）")
+parser.add_argument("--base-url", default=None, help="LLM API base_url，覆盖 .env 中的 LLM_BASE_URL")
+parser.add_argument("--model",    default=None, help="LLM 模型名，覆盖 .env 中的 LLM_MODEL")
+parser.add_argument("--max-candidates", type=int, default=80, help="NER 候选名最大保留数量（默认 80）")
+args, _ = parser.parse_known_args()
+
+# CLI 参数覆盖环境变量（必须在 import character_gen 之前设置）
+if args.base_url:
+    os.environ["LLM_BASE_URL"] = args.base_url
+if args.model:
+    os.environ["LLM_MODEL"] = args.model
+
+# ---------------------------------------------------------------------------
+# 现在才 import character_gen，保证环境变量已经设好
+# ---------------------------------------------------------------------------
+import character_gen as cg
 from character_gen import (
     _read_full_txt,
     _extract_names_hanlp,
     get_major_character_names_from_txt_hanlp,
     get_major_character_names_from_txt,
     get_major_character_names,
+    LLM_BASE_URL,
+    LLM_MODEL,
 )
 
 # ---------------------------------------------------------------------------
-# 配置：改成你本地 txt 文件的实际路径和书名
+# 配置：改成你本地 txt 文件的实际路径和书名（或用命令行参数传入）
 # ---------------------------------------------------------------------------
-# TXT_FILE = r'c:\Users\Administrator\Desktop\淫荡少妇白洁.txt'   # ← 改这里
-# BOOK_NAME = "淫荡少妇白洁"                        # ← 或留空白（仅作提示）
-TXT_FILE = r'c:\Users\Administrator\Desktop\女生宿舍门房秦大爷的故事.txt'   # ← 改这里
-BOOK_NAME = "女生宿舍门房秦大爷的故事"                        # ← 或留空白（仅作提示）
-MAX_CANDIDATES = 80                        # NER 候选名最大保留数量
+TXT_FILE       = args.txt  or r'C:\path\to\your_novel.txt'   # ← 改这里
+BOOK_NAME      = args.book or "你的小说名"                        # ← 或留空白
+MAX_CANDIDATES = args.max_candidates
 # ---------------------------------------------------------------------------
 
 
 def _check_file() -> bool:
     if not os.path.exists(TXT_FILE):
         print(f"[ERROR] File not found: {TXT_FILE}")
-        print("请修改脚本顶部的 TXT_FILE 路径。")
+        print("请修改脚本顶部的 TXT_FILE，或用 --txt 参数传入路径。")
         return False
     return True
 
 
-def test_read_full():
-    """验证能否完整读取文件并打印基本信息"""
+def print_config():
+    print(f"  txt 文件  : {TXT_FILE}")
+    print(f"  书名      : {BOOK_NAME or '(未指定)'}")
+    print(f"  LLM URL   : {LLM_BASE_URL}")
+    print(f"  LLM 模型  : {LLM_MODEL}")
+    print(f"  候选上限  : {MAX_CANDIDATES}")
+    print()
+
+
+def test_read_full() -> bool:
+    """Step 1: 验证能否完整读取文件"""
     print("=" * 60)
     print("[Step 1] 验证文件读取 _read_full_txt()")
     print("=" * 60)
@@ -62,8 +116,8 @@ def test_read_full():
     return True
 
 
-def test_ner_extraction():
-    """验证 HanLP/jieba NER 提取，0 LLM token"""
+def test_ner_extraction() -> bool:
+    """Step 2: 只跑 HanLP/jieba NER，0 LLM token"""
     print()
     print("=" * 60)
     print("[Step 2] HanLP / jieba NER 候选名提取 _extract_names_hanlp()")
@@ -100,14 +154,14 @@ def test_ner_extraction():
 
 
 def test_hanlp_strategy():
-    """验证完整的 HanLP NER + LLM 精炼流程"""
+    """Step 3: 完整跑 HanLP NER + LLM 精炼"""
     print()
     print("=" * 60)
     print("[Step 3] HanLP + LLM 精炼 get_major_character_names_from_txt_hanlp()")
     print("=" * 60)
 
     if not _check_file():
-        return
+        return []
 
     print(f"处理文件 : {TXT_FILE}")
     print(f"书名提示 : {BOOK_NAME or '(未指定)'} | 候选名上限 : {MAX_CANDIDATES}")
@@ -122,18 +176,26 @@ def test_hanlp_strategy():
         print(f"总耗时 : {elapsed:.1f}s")
         print(f"最终角色数 : {len(chars)}")
         print()
-        print("--- 角色列表 ---")
-        for i, c in enumerate(chars, 1):
-            print(f"  {i:>2}. {c}")
-        print()
-        print("[OK] HanLP 策略测试通过。")
+        if chars:
+            print("--- 角色列表 ---")
+            for i, c in enumerate(chars, 1):
+                print(f"  {i:>2}. {c}")
+            print()
+            print("[OK] HanLP 策略测试通过。")
+        else:
+            print("[WARN] 未提取到角色，请检查 LLM 配置（Step 3 需要 LLM 在线）。")
+            print(f"       当前 LLM_BASE_URL = {LLM_BASE_URL}")
+            print(f"       当前 LLM_MODEL    = {LLM_MODEL}")
+            print("       可用 --base-url / --model 参数覆盖，或修改 .env 文件。")
+        return chars
     except Exception:
         import traceback
         traceback.print_exc()
+        return []
 
 
 def test_compare_strategies():
-    """对比 hanlp 策略 vs txt_extract 策略，输出差异"""
+    """Step 4: 对比 hanlp vs txt_extract 两种策略结果"""
     print()
     print("=" * 60)
     print("[Step 4] 对比 hanlp vs txt_extract 策略结果")
@@ -149,7 +211,7 @@ def test_compare_strategies():
     )
     t_hanlp = time.time() - t0
 
-    print("… 运行 txt_extract 策略 ...")
+    print(f"… 运行 txt_extract 策略 ...")
     t0 = time.time()
     txt_chars = get_major_character_names_from_txt(TXT_FILE, BOOK_NAME)
     t_txt = time.time() - t0
@@ -174,7 +236,7 @@ def test_compare_strategies():
 
 
 def test_auto_mode():
-    """验证 auto 模式是否正确回落到 hanlp"""
+    """Step 5: 验证 auto 模式是否正确回落到 hanlp"""
     print()
     print("=" * 60)
     print("[Step 5] auto 模式回落测试 get_major_character_names()")
@@ -201,6 +263,7 @@ def test_auto_mode():
 
 if __name__ == "__main__":
     print("\n>>> CharacterGeneration — HanLP NER 策略调试脚本 <<<\n")
+    print_config()
 
     ok = test_read_full()
     if not ok:
@@ -212,6 +275,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     test_hanlp_strategy()
-    # test_compare_strategies()
-    
-    # test_auto_mode()
+    test_compare_strategies()
+    test_auto_mode()
