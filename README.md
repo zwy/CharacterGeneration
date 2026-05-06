@@ -72,7 +72,7 @@ You can start both services with a single command on Windows:
 
 Alternatively, run them manually:
 - **Backend**: `cd backend && python main.py` (Runs on port 8000)
-- **Frontend**: `cd frontend && npm run dev` (Runs on port 5173)
+- **Frontend**: `cd frontend && npm run dev` (Runs on port 3173)
 
 ## 📖 How to Use
 

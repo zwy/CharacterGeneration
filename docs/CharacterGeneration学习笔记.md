@@ -143,11 +143,11 @@
     窗口4 - 启动前端：
       cd CharacterGeneration\charactergenerate\frontend
       npm run dev
-      → 访问 http://localhost:5173
+      → 访问 http://localhost:3173
 
 ---
 
-## 使用流程（在浏览器 http://localhost:5173 操作）
+## 使用流程（在浏览器 http://localhost:3173 操作）
 
   1. Load a Book
      输入小说 .txt 文件的完整路径，如：C:\novels\三体.txt
@@ -208,7 +208,7 @@
 
   问题：前端无法连接后端
   原因：端口冲突或后端未启动
-  解决：确认后端在8000端口，前端在5173端口
+  解决：确认后端在8000端口，前端在3173端口
 
   问题：中文小说角色识别/描述效果差
   原因：gemma3:4b 对中文理解有限

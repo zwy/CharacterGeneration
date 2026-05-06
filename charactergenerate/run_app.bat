@@ -17,10 +17,10 @@ start "Backend (FastAPI)" cmd /c "cd /d "%BASE_DIR%backend" && python main.py"
 timeout /t 2 >nul
 
 :: Start Frontend
-echo [2/2] Starting React Frontend on port 5173...
+echo [2/2] Starting React Frontend on port 3173...
 echo.
 echo Please wait for Vite to initialize.
-echo The app will be available at: http://localhost:5173/
+echo The app will be available at: http://localhost:3173/
 echo.
 
 cd /d "%BASE_DIR%frontend"
